@@ -16,12 +16,23 @@ class MAPPO:
         learning_rate=0.0003,
         gamma=0.99,
         clip_epsilon=0.2,
-        ppo_epochs=5
+        ppo_epochs=5,
+        gae_lambda=0.95,
+        entropy_coefficient=0.01
     ):
 
         self.gamma = gamma
         self.clip_epsilon = clip_epsilon
         self.ppo_epochs = ppo_epochs
+        self.gae_lambda = gae_lambda
+        self.entropy_coefficient = entropy_coefficient
+
+        # ==================================================
+        # ACTOR
+        # ==================================================
+
+        # Actor receives local state:
+        # 32 GNN features for one intersection
 
         self.actor = Actor(
             input_size=state_size,
@@ -29,10 +40,20 @@ class MAPPO:
             action_size=action_size
         )
 
+        # ==================================================
+        # CENTRALIZED CRITIC
+        # ==================================================
+
+        # 16 intersections × 32 GNN features = 512
+
         self.critic = Critic(
-            input_size=state_size,
+            input_size=512,
             hidden_size=hidden_size
         )
+
+        # ==================================================
+        # OPTIMIZERS
+        # ==================================================
 
         self.actor_optimizer = optim.Adam(
             self.actor.parameters(),
@@ -44,18 +65,63 @@ class MAPPO:
             lr=learning_rate
         )
 
-    def select_action(self, state):
+    # ==================================================
+    # SELECT ACTION
+    # ==================================================
 
-        if not isinstance(state, torch.Tensor):
+    def select_action(
+        self,
+        state,
+        global_state
+    ):
+
+        # --------------------------------------------------
+        # LOCAL STATE
+        # --------------------------------------------------
+
+        if not isinstance(
+            state,
+            torch.Tensor
+        ):
+
             state = torch.tensor(
                 state,
                 dtype=torch.float32
             )
 
+        # --------------------------------------------------
+        # GLOBAL STATE
+        # --------------------------------------------------
+
+        if not isinstance(
+            global_state,
+            torch.Tensor
+        ):
+
+            global_state = torch.tensor(
+                global_state,
+                dtype=torch.float32
+            )
+
+        # --------------------------------------------------
+        # ADD BATCH DIMENSION
+        # --------------------------------------------------
+
         if state.dim() == 1:
+
             state = state.unsqueeze(0)
 
-        probabilities = self.actor(state)
+        if global_state.dim() == 1:
+
+            global_state = global_state.unsqueeze(0)
+
+        # ==================================================
+        # ACTOR
+        # ==================================================
+
+        probabilities = self.actor(
+            state
+        )
 
         distribution = torch.distributions.Categorical(
             probabilities
@@ -63,9 +129,17 @@ class MAPPO:
 
         action = distribution.sample()
 
-        log_probability = distribution.log_prob(action)
+        log_probability = distribution.log_prob(
+            action
+        )
 
-        value = self.critic(state)
+        # ==================================================
+        # CENTRALIZED CRITIC
+        # ==================================================
+
+        value = self.critic(
+            global_state
+        )
 
         return (
             action.item(),
@@ -73,16 +147,33 @@ class MAPPO:
             value.item()
         )
 
+    # ==================================================
+    # UPDATE MAPPO
+    # ==================================================
+
     def update(
         self,
         states,
+        global_states,
         actions,
         old_log_probs,
         rewards,
-        values
+        values,
+        next_values,
+        dones
     ):
 
-        states = torch.stack(states).float()
+        # ==================================================
+        # CONVERT DATA TO TENSORS
+        # ==================================================
+
+        states = torch.stack(
+            states
+        ).float()
+
+        global_states = torch.stack(
+            global_states
+        ).float()
 
         actions = torch.tensor(
             actions,
@@ -104,97 +195,167 @@ class MAPPO:
             dtype=torch.float32
         )
 
-        # --------------------------------
-        # Calculate discounted returns
-        # --------------------------------
-
-        returns = []
-        discounted_reward = 0.0
-
-        for reward in reversed(rewards):
-
-            discounted_reward = (
-                reward
-                + self.gamma * discounted_reward
-            )
-
-            returns.insert(
-                0,
-                discounted_reward
-            )
-
-        returns = torch.tensor(
-            returns,
+        next_values = torch.tensor(
+            next_values,
             dtype=torch.float32
         )
 
-        # --------------------------------
-        # Normalize returns
-        # --------------------------------
+        dones = torch.tensor(
+            dones,
+            dtype=torch.float32
+        )
+
+        # ==================================================
+        # GAE ADVANTAGE CALCULATION
+        # ==================================================
+
+        advantages = torch.zeros_like(
+            rewards
+        )
+
+        gae = 0.0
+
+        for t in reversed(
+            range(len(rewards))
+        ):
+
+            # --------------------------------------------------
+            # TD ERROR
+            # --------------------------------------------------
+
+            delta = (
+                rewards[t]
+                + self.gamma
+                * next_values[t]
+                * (1 - dones[t])
+                - values[t]
+            )
+
+            # --------------------------------------------------
+            # GAE
+            # --------------------------------------------------
+
+            gae = (
+                delta
+                + self.gamma
+                * self.gae_lambda
+                * (1 - dones[t])
+                * gae
+            )
+
+            advantages[t] = gae
+
+        # ==================================================
+        # CALCULATE RETURNS
+        # ==================================================
+
+        # IMPORTANT:
+        # Calculate returns BEFORE normalizing advantages.
 
         returns = (
-            returns - returns.mean()
-        ) / (
-            returns.std() + 1e-8
+            advantages
+            + values
         )
 
-        # --------------------------------
-        # Calculate advantages
-        # --------------------------------
+        returns = returns.detach()
 
-        advantages = returns - values
+        # ==================================================
+        # NORMALIZE ADVANTAGES
+        # ==================================================
 
         advantages = (
-            advantages - advantages.mean()
+            advantages
+            - advantages.mean()
         ) / (
-            advantages.std() + 1e-8
+            advantages.std()
+            + 1e-8
         )
 
-        # Prevent unnecessary gradient tracking
         advantages = advantages.detach()
 
-        # --------------------------------
-        # Multiple PPO epochs
-        # --------------------------------
+        # ==================================================
+        # PPO EPOCHS
+        # ==================================================
 
-        actor_loss_value = 0
-        critic_loss_value = 0
+        actor_loss_value = 0.0
 
-        for epoch in range(self.ppo_epochs):
+        critic_loss_value = 0.0
 
-            # ==============================
-            # ACTOR UPDATE
-            # ==============================
+        for epoch in range(
+            self.ppo_epochs
+        ):
 
-            probabilities = self.actor(states)
+            # ==================================================
+            # ACTOR
+            # ==================================================
 
-            distribution = torch.distributions.Categorical(
-                probabilities
+            probabilities = self.actor(
+                states
             )
 
-            new_log_probs = distribution.log_prob(
-                actions
+            distribution = (
+                torch.distributions.Categorical(
+                    probabilities
+                )
             )
 
-            # PPO probability ratio
+            new_log_probs = (
+                distribution.log_prob(
+                    actions
+                )
+            )
+
+            # --------------------------------------------------
+            # PPO RATIO
+            # --------------------------------------------------
+
             ratio = torch.exp(
-                new_log_probs - old_log_probs
+                new_log_probs
+                - old_log_probs
             )
 
-            # Clipped ratio
+            # --------------------------------------------------
+            # PPO CLIPPING
+            # --------------------------------------------------
+
             clipped_ratio = torch.clamp(
                 ratio,
                 1 - self.clip_epsilon,
                 1 + self.clip_epsilon
             )
 
-            # PPO objective
+            # --------------------------------------------------
+            # PPO OBJECTIVE
+            # --------------------------------------------------
+
             policy_objective = torch.min(
                 ratio * advantages,
                 clipped_ratio * advantages
             )
 
-            actor_loss = -policy_objective.mean()
+            # --------------------------------------------------
+            # ENTROPY
+            # --------------------------------------------------
+
+            entropy = (
+                distribution
+                .entropy()
+                .mean()
+            )
+
+            # --------------------------------------------------
+            # ACTOR LOSS
+            # --------------------------------------------------
+
+            actor_loss = (
+                -policy_objective.mean()
+                - self.entropy_coefficient
+                * entropy
+            )
+
+            # --------------------------------------------------
+            # ACTOR UPDATE
+            # --------------------------------------------------
 
             self.actor_optimizer.zero_grad()
 
@@ -202,18 +363,28 @@ class MAPPO:
 
             self.actor_optimizer.step()
 
-            # ==============================
-            # CRITIC UPDATE
-            # ==============================
+            # ==================================================
+            # CENTRALIZED CRITIC
+            # ==================================================
 
-            predicted_values = self.critic(
-                states
-            ).squeeze(-1)
+            predicted_values = (
+                self.critic(
+                    global_states
+                ).squeeze(-1)
+            )
+
+            # --------------------------------------------------
+            # CRITIC LOSS
+            # --------------------------------------------------
 
             critic_loss = nn.MSELoss()(
                 predicted_values,
                 returns
             )
+
+            # --------------------------------------------------
+            # CRITIC UPDATE
+            # --------------------------------------------------
 
             self.critic_optimizer.zero_grad()
 
@@ -221,14 +392,33 @@ class MAPPO:
 
             self.critic_optimizer.step()
 
-            actor_loss_value = actor_loss.item()
-            critic_loss_value = critic_loss.item()
+            # ==================================================
+            # STORE LOSSES
+            # ==================================================
+
+            actor_loss_value = (
+                actor_loss.item()
+            )
+
+            critic_loss_value = (
+                critic_loss.item()
+            )
+
+            # ==================================================
+            # TRAINING INFORMATION
+            # ==================================================
 
             print(
-                f"PPO Epoch {epoch + 1}/{self.ppo_epochs} | "
-                f"Ratio={ratio.mean().item():.4f} | "
-                f"Actor Loss={actor_loss_value:.6f} | "
-                f"Critic Loss={critic_loss_value:.6f}"
+                f"PPO Epoch "
+                f"{epoch + 1}/{self.ppo_epochs} | "
+                f"Ratio="
+                f"{ratio.mean().item():.4f} | "
+                f"Entropy="
+                f"{entropy.item():.4f} | "
+                f"Actor Loss="
+                f"{actor_loss_value:.6f} | "
+                f"Critic Loss="
+                f"{critic_loss_value:.6f}"
             )
 
         return (

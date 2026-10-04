@@ -1,86 +1,136 @@
 import csv
 import os
-import sys
-import time
+import traci
 
-PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(
-        os.path.dirname(
-            os.path.abspath(__file__)
+
+# ==================================================
+# COLLECT ONE TRAFFIC STATE
+# ==================================================
+
+def collect_traffic_state(step):
+
+    vehicle_ids = traci.vehicle.getIDList()
+
+    vehicle_count = len(vehicle_ids)
+
+    total_waiting_time = 0.0
+    total_speed = 0.0
+    queue_length = 0
+
+    for vehicle_id in vehicle_ids:
+
+        speed = traci.vehicle.getSpeed(
+            vehicle_id
         )
+
+        waiting_time = (
+            traci.vehicle.getAccumulatedWaitingTime(
+                vehicle_id
+            )
+        )
+
+        total_speed += speed
+        total_waiting_time += waiting_time
+
+        if speed < 0.1:
+
+            queue_length += 1
+
+    if vehicle_count > 0:
+
+        average_speed = (
+            total_speed
+            / vehicle_count
+        )
+
+    else:
+
+        average_speed = 0.0
+
+    return {
+        "step": step,
+        "vehicle_count": vehicle_count,
+        "waiting_time": total_waiting_time,
+        "average_speed": average_speed,
+        "queue_length": queue_length
+    }
+
+
+# ==================================================
+# COLLECT MULTIPLE STEPS
+# ==================================================
+
+def collect_traffic_data(
+    max_steps=1000
+):
+
+    data = []
+
+    for step in range(
+        max_steps
+    ):
+
+        traci.simulationStep()
+
+        state = collect_traffic_state(
+            step
+        )
+
+        data.append(state)
+
+    return data
+
+
+# ==================================================
+# SAVE DATA TO CSV
+# ==================================================
+
+def save_traffic_data(
+    data,
+    output_file
+):
+
+    output_directory = os.path.dirname(
+        output_file
     )
-)
 
-sys.path.insert(0, PROJECT_ROOT)
+    if output_directory:
 
-from src.environment.sumo_env import SumoEnvironment
+        os.makedirs(
+            output_directory,
+            exist_ok=True
+        )
+
+    fieldnames = [
+        "step",
+        "vehicle_count",
+        "waiting_time",
+        "average_speed",
+        "queue_length"
+    ]
+
+    with open(
+        output_file,
+        "w",
+        newline=""
+    ) as file:
+
+        writer = csv.DictWriter(
+            file,
+            fieldnames=fieldnames
+        )
+
+        writer.writeheader()
+
+        writer.writerows(data)
 
 
-def collect_data(num_steps=1000):
-
-    env = SumoEnvironment(use_gui=True)
-
-    state = env.reset()
-
-    output_file = os.path.join(
-        PROJECT_ROOT,
-        "evaluation",
-        "results",
-        "traffic_data.csv"
-    )
-
-    with open(output_file, "w", newline="") as file:
-
-        writer = csv.writer(file)
-
-        # CSV header
-        writer.writerow([
-            "step",
-            "vehicle_count",
-            "waiting_time",
-            "average_speed",
-            "queue_length"
-        ])
-
-        for step in range(num_steps):
-
-            state, reward, done = env.step("A0")
-
-            writer.writerow([
-                step,
-                state["vehicle_count"],
-                state["total_waiting_time"],
-                state["average_speed"],
-                state["queue_length"]
-            ])
-
-            if step % 100 == 0:
-                print(
-                    "Step:", step,
-                    "| Vehicles:", state["vehicle_count"],
-                    "| Waiting:", round(
-                        state["total_waiting_time"], 2
-                    ),
-                    "| Speed:", round(
-                        state["average_speed"], 2
-                    ),
-                    "| Queue:", state["queue_length"]
-                )
-
-            if done:
-                print("Simulation finished.")
-                break
-
-            time.sleep(0.01)
-
-    env.close()
-
-    print("\n======================================")
-    print("Data collection completed!")
-    print("======================================")
-    print("Dataset saved to:")
-    print(output_file)
-
+# ==================================================
+# TEST
+# ==================================================
 
 if __name__ == "__main__":
-    collect_data(500)
+
+    print(
+        "Traffic collector module loaded successfully."
+    )

@@ -1,58 +1,17 @@
-import os
-import sys
 import numpy as np
-import torch
 
 
-PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(
-        os.path.dirname(
-            os.path.abspath(__file__)
-        )
+# ==================================================
+# CREATE NODE FEATURES
+# ==================================================
+
+def create_node_features(
+    local_states
+):
+
+    nodes = sorted(
+        local_states.keys()
     )
-)
-
-sys.path.insert(0, PROJECT_ROOT)
-
-from src.graph.graph_builder import build_graph
-
-
-def create_adjacency_matrix(graph):
-    nodes = sorted(graph.keys())
-
-    node_index = {
-        node: i
-        for i, node in enumerate(nodes)
-    }
-
-    n = len(nodes)
-
-    adjacency = np.zeros(
-        (n, n),
-        dtype=np.float32
-    )
-
-    for node in nodes:
-
-        for neighbor in graph[node]:
-
-            if neighbor in node_index:
-
-                i = node_index[node]
-                j = node_index[neighbor]
-
-                adjacency[i][j] = 1
-
-    return nodes, adjacency
-
-
-def create_node_features(local_states):
-    """
-    Convert local intersection states
-    into a node-feature matrix.
-    """
-
-    nodes = sorted(local_states.keys())
 
     features = []
 
@@ -62,81 +21,119 @@ def create_node_features(local_states):
 
         node_features = [
 
-            state["vehicle_count"],
+            state.get(
+                "vehicle_count",
+                0
+            ),
 
-            state["queue_length"],
+            state.get(
+                "queue_length",
+                0
+            ),
 
-            state["waiting_time"],
+            state.get(
+                "waiting_time",
+                0
+            ),
 
-            state["average_speed"],
+            state.get(
+                "average_speed",
+                0
+            ),
 
-            state["current_phase"],
+            state.get(
+                "current_phase",
+                0
+            ),
 
-            state["phase_duration"]
-
+            state.get(
+                "phase_duration",
+                0
+            )
         ]
 
-        features.append(node_features)
+        features.append(
+            node_features
+        )
 
-    return nodes, np.array(
-        features,
-        dtype=np.float32
+    return (
+        nodes,
+        np.array(
+            features,
+            dtype=np.float32
+        )
     )
 
+
+# ==================================================
+# CREATE GRAPH DATASET
+# ==================================================
+
+def create_graph_dataset(
+    local_states
+):
+
+    nodes, features = (
+        create_node_features(
+            local_states
+        )
+    )
+
+    return {
+        "nodes": nodes,
+        "features": features
+    }
+
+
+# ==================================================
+# TEST
+# ==================================================
 
 if __name__ == "__main__":
 
-    print("\n======================================")
-    print("GNN DATASET")
-    print("======================================")
+    test_states = {
 
-    # Build graph
-    graph = build_graph()
+        "A0": {
+            "vehicle_count": 10,
+            "queue_length": 2,
+            "waiting_time": 20,
+            "average_speed": 8,
+            "current_phase": 0,
+            "phase_duration": 30
+        },
 
-    # Create adjacency matrix
-    nodes, adjacency = create_adjacency_matrix(
-        graph
+        "A1": {
+            "vehicle_count": 15,
+            "queue_length": 4,
+            "waiting_time": 30,
+            "average_speed": 7,
+            "current_phase": 1,
+            "phase_duration": 30
+        }
+    }
+
+    nodes, features = (
+        create_node_features(
+            test_states
+        )
     )
 
-    print("\nNumber of nodes:", len(nodes))
-
-    print("\nNodes:")
-
-    for node in nodes:
-        print("-", node)
-
-    print("\nAdjacency Matrix:")
-    print(adjacency)
-
-    # Create example node features
-    features = create_node_features(
-        vehicle_count=30,
-        waiting_time=100,
-        average_speed=8,
-        queue_length=10,
-        number_of_nodes=len(nodes)
-    )
-
-    # Convert to PyTorch tensors
-    x = torch.tensor(
-        features,
-        dtype=torch.float32
-    )
-
-    adjacency_tensor = torch.tensor(
-        adjacency,
-        dtype=torch.float32
-    )
-
-    print("\n======================================")
-    print("TENSOR INFORMATION")
-    print("======================================")
-
-    print("Node feature shape:", x.shape)
+    print()
+    print("=" * 50)
+    print("GRAPH DATASET TEST")
+    print("=" * 50)
 
     print(
-        "Adjacency shape:",
-        adjacency_tensor.shape
+        f"Nodes: {nodes}"
     )
 
-    print("\nGNN dataset preparation completed!")
+    print(
+        f"Feature shape: {features.shape}"
+    )
+
+    print()
+    print("Feature matrix:")
+
+    print(features)
+
+    print("=" * 50)

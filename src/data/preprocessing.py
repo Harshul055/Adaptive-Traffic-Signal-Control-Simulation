@@ -1,75 +1,113 @@
-import os
 import pandas as pd
-import numpy as np
 
 
-PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(
-        os.path.dirname(
-            os.path.abspath(__file__)
-        )
-    )
-)
+# ==================================================
+# TRAFFIC FEATURES
+# ==================================================
 
-INPUT_FILE = os.path.join(
-    PROJECT_ROOT,
-    "evaluation",
-    "results",
-    "traffic_data.csv"
-)
+FEATURES = [
+    "vehicle_count",
+    "waiting_time",
+    "average_speed",
+    "queue_length"
+]
 
 
-def load_data():
+# ==================================================
+# NORMALIZE DATA
+# ==================================================
 
-    data = pd.read_csv(INPUT_FILE)
+def normalize_data(data):
 
-    print("\nDataset loaded successfully!")
-    print("Rows:", len(data))
-    print("Columns:", list(data.columns))
+    data = data.copy()
+
+    for feature in FEATURES:
+
+        if feature not in data.columns:
+            raise ValueError(
+                f"Missing feature: {feature}"
+            )
+
+        minimum = data[feature].min()
+        maximum = data[feature].max()
+
+        # Avoid division by zero
+        if maximum == minimum:
+
+            data[feature] = 0.0
+
+        else:
+
+            data[feature] = (
+                data[feature] - minimum
+            ) / (
+                maximum - minimum
+            )
 
     return data
 
 
-def create_sequences(data, sequence_length=10):
+# ==================================================
+# DENORMALIZE DATA
+# ==================================================
 
-    values = data[
-        [
-            "vehicle_count",
-            "waiting_time",
-            "average_speed",
-            "queue_length"
-        ]
-    ].values
+def denormalize_value(
+    value,
+    minimum,
+    maximum
+):
 
-    X = []
-    y = []
+    return (
+        value * (maximum - minimum)
+        + minimum
+    )
 
-    for i in range(len(values) - sequence_length):
 
-        X.append(
-            values[i:i + sequence_length]
-        )
+# ==================================================
+# PREPARE FEATURES
+# ==================================================
 
-        # Predict the next traffic state
-        y.append(
-            values[i + sequence_length]
-        )
+def prepare_features(data):
 
-    return np.array(X), np.array(y)
+    normalized_data = normalize_data(
+        data
+    )
 
+    return normalized_data[FEATURES]
+
+
+# ==================================================
+# MAIN TEST
+# ==================================================
 
 if __name__ == "__main__":
 
-    data = load_data()
+    print()
+    print("=" * 50)
+    print("DATA PREPROCESSING")
+    print("=" * 50)
 
-    X, y = create_sequences(
-        data,
-        sequence_length=10
+    # Test dataset
+    test_data = pd.DataFrame({
+        "vehicle_count": [10, 20, 30],
+        "waiting_time": [100, 200, 300],
+        "average_speed": [5, 10, 15],
+        "queue_length": [2, 4, 6]
+    })
+
+    normalized = normalize_data(
+        test_data
     )
 
-    print("\n======================================")
-    print("Preprocessing completed!")
-    print("======================================")
+    print()
+    print("Original data:")
+    print(test_data)
 
-    print("X shape:", X.shape)
-    print("y shape:", y.shape)
+    print()
+    print("Normalized data:")
+    print(normalized)
+
+    print()
+    print("Preprocessing completed.")
+
+    print("=" * 50)

@@ -5,6 +5,10 @@ import numpy as np
 import pandas as pd
 import torch
 
+# --------------------------------------------------
+# PROJECT ROOT
+# --------------------------------------------------
+
 PROJECT_ROOT = os.path.dirname(
     os.path.dirname(
         os.path.dirname(
@@ -13,16 +17,13 @@ PROJECT_ROOT = os.path.dirname(
     )
 )
 
-sys.path.insert(0, PROJECT_ROOT)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-from src.prediction.lstm import TrafficLSTM
 
-
-# -----------------------------
-# Settings
-# -----------------------------
-
-SEQUENCE_LENGTH = 10
+# --------------------------------------------------
+# PATHS
+# --------------------------------------------------
 
 DATA_FILE = os.path.join(
     PROJECT_ROOT,
@@ -38,8 +39,28 @@ MODEL_FILE = os.path.join(
     "traffic_lstm.pth"
 )
 
+OUTPUT_FILE = os.path.join(
+    PROJECT_ROOT,
+    "evaluation",
+    "results",
+    "lstm_predictions.csv"
+)
 
-COLUMNS = [
+
+# --------------------------------------------------
+# IMPORT MODEL
+# --------------------------------------------------
+
+from src.prediction.lstm import TrafficLSTM
+
+
+# --------------------------------------------------
+# SETTINGS
+# --------------------------------------------------
+
+SEQUENCE_LENGTH = 10
+
+FEATURES = [
     "vehicle_count",
     "waiting_time",
     "average_speed",
@@ -47,148 +68,203 @@ COLUMNS = [
 ]
 
 
-# -----------------------------
-# Load data
-# -----------------------------
+# --------------------------------------------------
+# LOAD DATA
+# --------------------------------------------------
+
+print("=" * 60)
+print("LSTM TRAFFIC PREDICTION")
+print("=" * 60)
+
+if not os.path.exists(DATA_FILE):
+    print("Traffic data not found:")
+    print(DATA_FILE)
+    sys.exit()
+
+if not os.path.exists(MODEL_FILE):
+    print("LSTM model not found:")
+    print(MODEL_FILE)
+    sys.exit()
+
 
 data = pd.read_csv(DATA_FILE)
 
-data[COLUMNS] = data[COLUMNS].apply(
-    pd.to_numeric,
-    errors="coerce"
-)
+print(f"\nLoaded rows: {len(data)}")
+
+
+# --------------------------------------------------
+# CHECK FEATURES
+# --------------------------------------------------
+
+for feature in FEATURES:
+
+    if feature not in data.columns:
+
+        print(
+            f"Missing feature: {feature}"
+        )
+
+        sys.exit()
+
+
+# --------------------------------------------------
+# CLEAN DATA
+# --------------------------------------------------
 
 data = data.dropna(
-    subset=COLUMNS
+    subset=FEATURES
 ).reset_index(drop=True)
 
 
-# -----------------------------
-# Convert to numpy
-# -----------------------------
+# --------------------------------------------------
+# NORMALIZE DATA
+# --------------------------------------------------
 
-features = data[COLUMNS].values.astype(
+values = data[FEATURES].values.astype(
     np.float32
 )
 
+minimum = values.min(axis=0)
+maximum = values.max(axis=0)
 
-# -----------------------------
-# Normalize
-# -----------------------------
+range_values = maximum - minimum
 
-feature_min = features.min(axis=0)
-feature_max = features.max(axis=0)
+range_values[range_values == 0] = 1
 
 normalized = (
-    features - feature_min
-) / (
-    feature_max - feature_min + 1e-8
+    (values - minimum)
+    / range_values
 )
 
 
-# -----------------------------
-# Take last 10 states
-# -----------------------------
-
-last_sequence = normalized[
-    -SEQUENCE_LENGTH:
-]
-
-
-X = torch.tensor(
-    last_sequence,
-    dtype=torch.float32
-).unsqueeze(0)
-
-
-# -----------------------------
-# Load LSTM
-# -----------------------------
-
+# --------------------------------------------------
+# CREATE MODEL
+# --------------------------------------------------
 model = TrafficLSTM(
     input_size=4,
     hidden_size=64,
-    num_layers=2,
-    output_size=4
+    output_size=4,
+    num_layers=1
 )
 
-model.load_state_dict(
-    torch.load(
-        MODEL_FILE,
-        map_location=torch.device("cpu")
-    )
+device = torch.device(
+    "cuda"
+    if torch.cuda.is_available()
+    else "cpu"
 )
+
+model.to(device)
+
+
+# --------------------------------------------------
+# LOAD TRAINED MODEL
+# --------------------------------------------------
+
+checkpoint = torch.load(
+    MODEL_FILE,
+    map_location=device
+)
+
+if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+
+    model.load_state_dict(
+        checkpoint["model_state_dict"]
+    )
+
+else:
+
+    model.load_state_dict(
+        checkpoint
+    )
+
 
 model.eval()
 
 
-# -----------------------------
-# Make prediction
-# -----------------------------
+# --------------------------------------------------
+# GENERATE PREDICTIONS
+# --------------------------------------------------
+
+predictions = []
+
+steps = []
 
 with torch.no_grad():
 
-    prediction = model(X)
+    for i in range(
+        SEQUENCE_LENGTH,
+        len(normalized)
+    ):
 
-prediction = prediction.numpy()[0]
+        sequence = normalized[
+            i - SEQUENCE_LENGTH:i
+        ]
+
+        tensor = torch.tensor(
+            sequence,
+            dtype=torch.float32
+        ).unsqueeze(0).to(device)
+
+        prediction = model(
+            tensor
+        )
+
+        prediction = prediction.cpu().numpy()[0]
+
+        predictions.append(
+            prediction
+        )
+
+        steps.append(
+            int(data.iloc[i]["step"])
+        )
 
 
-# -----------------------------
-# Convert prediction back
-# -----------------------------
+# --------------------------------------------------
+# SAVE PREDICTIONS
+# --------------------------------------------------
 
-prediction = (
-    prediction *
-    (feature_max - feature_min)
-) + feature_min
-
-
-# -----------------------------
-# Display result
-# -----------------------------
-
-print("\n======================================")
-print("LSTM TRAFFIC PREDICTION")
-print("======================================")
-
-print(
-    "Current vehicles:",
-    int(features[-1][0])
+predictions = np.array(
+    predictions
 )
 
-print(
-    "Predicted vehicles:",
-    round(float(prediction[0]), 2)
+lstm_data = pd.DataFrame({
+
+    "step": steps,
+
+    "vehicle_count": predictions[:, 0],
+
+    "waiting_time": predictions[:, 1],
+
+    "average_speed": predictions[:, 2],
+
+    "queue_length": predictions[:, 3]
+})
+
+
+lstm_data.to_csv(
+    OUTPUT_FILE,
+    index=False
 )
 
-print(
-    "Current waiting time:",
-    round(float(features[-1][1]), 2)
-)
+
+# --------------------------------------------------
+# COMPLETE
+# --------------------------------------------------
+
+print("\nLSTM prediction completed.")
 
 print(
-    "Predicted waiting time:",
-    round(float(prediction[1]), 2)
+    f"Predictions generated: {len(lstm_data)}"
 )
 
-print(
-    "Current average speed:",
-    round(float(features[-1][2]), 2)
-)
+print("\nSaved to:")
 
-print(
-    "Predicted average speed:",
-    round(float(prediction[2]), 2)
-)
+print(OUTPUT_FILE)
 
-print(
-    "Current queue length:",
-    int(features[-1][3])
-)
+print("\nColumns:")
 
-print(
-    "Predicted queue length:",
-    round(float(prediction[3]), 2)
-)
+for column in lstm_data.columns:
+    print(f"✓ {column}")
 
-print("\nPrediction completed successfully!")
+print("=" * 60)

@@ -1,10 +1,13 @@
 import os
 import sys
-import numpy as np
-import pandas as pd
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+# ==================================================
+# PROJECT ROOT
+# ==================================================
 
 PROJECT_ROOT = os.path.dirname(
     os.path.dirname(
@@ -12,21 +15,31 @@ PROJECT_ROOT = os.path.dirname(
     )
 )
 
-sys.path.insert(0, PROJECT_ROOT)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-from src.graph.graph_builder import build_graph
-from src.graph.graph_dataset import (
+
+# ==================================================
+# IMPORTS
+# ==================================================
+
+from src.graph.gnn import TrafficGNN
+from src.graph.graph_builder import (
+    build_graph,
     create_adjacency_matrix
 )
-from src.graph.gnn import TrafficGNN
 
 
-DATA_FILE = os.path.join(
-    PROJECT_ROOT,
-    "evaluation",
-    "results",
-    "traffic_data.csv"
-)
+# ==================================================
+# SETTINGS
+# ==================================================
+
+INPUT_FEATURES = 6
+HIDDEN_FEATURES = 64
+OUTPUT_FEATURES = 32
+
+LEARNING_RATE = 0.001
+EPOCHS = 100
 
 MODEL_DIR = os.path.join(
     PROJECT_ROOT,
@@ -39,197 +52,218 @@ MODEL_FILE = os.path.join(
     "traffic_gnn.pth"
 )
 
-FEATURE_COLUMNS = [
-    "vehicle_count",
-    "waiting_time",
-    "average_speed",
-    "queue_length"
-]
 
-EPOCHS = 100
-LEARNING_RATE = 0.001
+# ==================================================
+# CREATE TRAINING DATA
+# ==================================================
 
+def create_training_data(
+    graph,
+    adjacency
+):
 
-print("\n======================================")
-print("GNN TRAINING")
-print("======================================")
+    nodes = sorted(graph.keys())
 
+    num_nodes = len(nodes)
 
-# --------------------------------------
-# 1. Load traffic data
-# --------------------------------------
+    # --------------------------------------------------
+    # Initial traffic features
+    # --------------------------------------------------
+    #
+    # These are placeholder traffic-state features
+    # used to train the GNN structure.
+    #
+    # Later these can be replaced by real collected
+    # traffic states from SUMO.
+    # --------------------------------------------------
 
-data = pd.read_csv(DATA_FILE)
+    features = torch.zeros(
+        num_nodes,
+        INPUT_FEATURES,
+        dtype=torch.float32
+    )
 
-data[FEATURE_COLUMNS] = data[
-    FEATURE_COLUMNS
-].apply(
-    pd.to_numeric,
-    errors="coerce"
-)
+    for i in range(num_nodes):
 
-data = data.dropna(
-    subset=FEATURE_COLUMNS
-).reset_index(drop=True)
+        features[i] = torch.tensor([
+            1.0,   # vehicle count
+            0.0,   # queue length
+            0.0,   # waiting time
+            10.0,  # average speed
+            0.0,   # current phase
+            30.0   # phase duration
+        ])
 
-print("Traffic records:", len(data))
-
-
-# --------------------------------------
-# 2. Normalize traffic features
-# --------------------------------------
-
-features = data[
-    FEATURE_COLUMNS
-].values.astype(
-    np.float32
-)
-
-feature_min = features.min(axis=0)
-feature_max = features.max(axis=0)
-
-features = (
-    features - feature_min
-) / (
-    feature_max - feature_min + 1e-8
-)
+    return features
 
 
-# --------------------------------------
-# 3. Build graph
-# --------------------------------------
+# ==================================================
+# TRAIN GNN
+# ==================================================
 
-graph = build_graph()
+def train_gnn():
 
-nodes, adjacency = create_adjacency_matrix(
-    graph
-)
+    print()
+    print("=" * 50)
+    print("GNN TRAINING")
+    print("=" * 50)
 
-number_of_nodes = len(nodes)
+    # --------------------------------------------------
+    # Build graph
+    # --------------------------------------------------
 
-print(
-    "Number of intersections:",
-    number_of_nodes
-)
+    print()
+    print("Building traffic graph...")
 
+    graph = build_graph()
 
-# --------------------------------------
-# 4. Create node features
-# --------------------------------------
+    nodes, adjacency_matrix = (
+        create_adjacency_matrix(graph)
+    )
 
-average_features = features.mean(
-    axis=0
-)
+    print(
+        f"Number of nodes: {len(nodes)}"
+    )
 
-node_features = np.tile(
-    average_features,
-    (number_of_nodes, 1)
-)
+    print(
+        f"Adjacency shape: "
+        f"({len(adjacency_matrix)}, "
+        f"{len(adjacency_matrix[0])})"
+    )
 
+    # --------------------------------------------------
+    # Convert adjacency to tensor
+    # --------------------------------------------------
 
-# --------------------------------------
-# 5. Convert to tensors
-# --------------------------------------
+    adjacency = torch.tensor(
+        adjacency_matrix,
+        dtype=torch.float32
+    )
 
-x = torch.tensor(
-    node_features,
-    dtype=torch.float32
-)
+    # --------------------------------------------------
+    # Create input features
+    # --------------------------------------------------
 
-adjacency = torch.tensor(
-    adjacency,
-    dtype=torch.float32
-)
-
-target = x.clone()
-
-
-print(
-    "Input shape:",
-    x.shape
-)
-
-print(
-    "Target shape:",
-    target.shape
-)
-
-
-# --------------------------------------
-# 6. Create GNN
-# --------------------------------------
-
-model = TrafficGNN(
-    input_features=4,
-    hidden_features=64,
-    output_features=4
-)
-
-
-criterion = nn.MSELoss()
-
-optimizer = optim.Adam(
-    model.parameters(),
-    lr=LEARNING_RATE
-)
-
-
-# --------------------------------------
-# 7. Train
-# --------------------------------------
-
-print("\nStarting GNN training...\n")
-
-
-for epoch in range(EPOCHS):
-
-    optimizer.zero_grad()
-
-    output = model(
-        x,
+    features = create_training_data(
+        graph,
         adjacency
     )
 
-    loss = criterion(
-        output,
-        target
+    print(
+        f"Feature shape: {features.shape}"
     )
 
-    loss.backward()
+    # --------------------------------------------------
+    # Create target
+    # --------------------------------------------------
 
-    optimizer.step()
+    # The target is the same feature representation
+    # for this initial graph-embedding training.
+    #
+    # This verifies that the GNN can learn a stable
+    # graph representation before connecting it to
+    # the full traffic-learning pipeline.
 
-    if (
-        epoch == 0
-        or (epoch + 1) % 10 == 0
+    target = torch.zeros(
+        len(nodes),
+        OUTPUT_FEATURES,
+        dtype=torch.float32
+    )
+
+    # --------------------------------------------------
+    # Create model
+    # --------------------------------------------------
+
+    model = TrafficGNN(
+        input_features=INPUT_FEATURES,
+        hidden_features=HIDDEN_FEATURES,
+        output_features=OUTPUT_FEATURES
+    )
+
+    # --------------------------------------------------
+    # Optimizer
+    # --------------------------------------------------
+
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=LEARNING_RATE
+    )
+
+    criterion = nn.MSELoss()
+
+    # --------------------------------------------------
+    # Training
+    # --------------------------------------------------
+
+    print()
+    print("Starting training...")
+
+    for epoch in range(
+        1,
+        EPOCHS + 1
     ):
-        print(
-            f"Epoch {epoch + 1}/{EPOCHS} "
-            f"- Loss: {loss.item():.6f}"
+
+        model.train()
+
+        optimizer.zero_grad()
+
+        output = model(
+            features,
+            adjacency
         )
 
+        loss = criterion(
+            output,
+            target
+        )
 
-# --------------------------------------
-# 8. Save model
-# --------------------------------------
+        loss.backward()
 
-os.makedirs(
-    MODEL_DIR,
-    exist_ok=True
-)
+        optimizer.step()
 
-torch.save(
-    model.state_dict(),
-    MODEL_FILE
-)
+        if (
+            epoch == 1
+            or epoch % 10 == 0
+            or epoch == EPOCHS
+        ):
+
+            print(
+                f"Epoch {epoch:03d}/{EPOCHS} "
+                f"| Loss: {loss.item():.6f}"
+            )
+
+    # --------------------------------------------------
+    # Save model
+    # --------------------------------------------------
+
+    os.makedirs(
+        MODEL_DIR,
+        exist_ok=True
+    )
+
+    torch.save(
+        model.state_dict(),
+        MODEL_FILE
+    )
+
+    print()
+    print("GNN training completed.")
+
+    print()
+    print(
+        "Model saved to:"
+    )
+
+    print(
+        MODEL_FILE
+    )
+
+    print("=" * 50)
 
 
-print("\n======================================")
-print("GNN TRAINING COMPLETED")
-print("======================================")
+# ==================================================
+# MAIN
+# ==================================================
 
-print(
-    "Model saved to:"
-)
-
-print(MODEL_FILE)
+if __name__ == "__main__":
+    train_gnn()

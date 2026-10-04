@@ -23,6 +23,15 @@ sys.path.append(PROJECT_ROOT)
 from src.environment.state import get_traffic_state
 from src.environment.action import change_phase
 from src.environment.reward import calculate_reward
+from src.emergency.detector import (
+    get_emergency_vehicles,
+    get_vip_vehicles
+)
+
+from src.emergency.priority import (
+    give_emergency_priority,
+    give_vip_priority
+)
 
 
 class SumoEnvironment:
@@ -97,6 +106,13 @@ class SumoEnvironment:
 
         # Move SUMO forward
         traci.simulationStep()
+        # Emergency vehicles get highest priority
+        for vehicle_id in get_emergency_vehicles():
+            give_emergency_priority(vehicle_id)
+
+        # VIP vehicles get priority only when no emergency is active
+        for vehicle_id in get_vip_vehicles():
+            give_vip_priority(vehicle_id)
 
         # Get new state
         state = get_traffic_state()
