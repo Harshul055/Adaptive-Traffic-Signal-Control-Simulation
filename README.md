@@ -37,8 +37,7 @@ The system simulates a road network containing **16 signalized intersections** a
 27. [Important Files](#-important-files)
 28. [Troubleshooting](#-troubleshooting)
 29. [Common Commands](#-common-commands)
-30. [Future Improvements](#-future-improvements)
-31. [Conclusion](#-conclusion)
+30. [Conclusion](#-conclusion)
 
 ---
 
@@ -2071,30 +2070,6 @@ VIP Priority
 The resulting system provides adaptive multi-intersection traffic control instead of relying only on fixed-time signals.
 
 The final evaluation demonstrates substantial improvements over the fixed-time baseline in the tested scenario.
-
----
-
-# 🚀 Future Improvements
-
-Possible future improvements include:
-
-* Real-world traffic-camera integration
-* Real-time vehicle detection
-* YOLO-based traffic detection
-* GPS-based emergency vehicle detection
-* Real-world traffic signal controller integration
-* Larger road networks
-* More intersections
-* Multi-city traffic datasets
-* Transformer-based traffic prediction
-* Advanced multi-objective reinforcement learning
-* Cloud-based monitoring
-* Live traffic dashboard
-* Edge/IoT deployment
-* Real-time adaptive routing
-* Weather-aware traffic control
-* Accident detection
-* Pedestrian-aware signal control
 
 ---
 
