@@ -1,121 +1,148 @@
 # 🚦 Adaptive Traffic Signal Control Simulation
 
-An AI-based **Adaptive Traffic Signal Control System** using **SUMO, LSTM, GNN, and MAPPO**, with dedicated **Emergency Vehicle and VIP Priority Management**.
+An AI-based Adaptive Traffic Signal Control System using **SUMO, TraCI, LSTM, GNN, and MAPPO**, with dedicated **Emergency Vehicle and VIP Priority Management**.
 
-The system simulates **16 signalized intersections** and dynamically controls traffic signals based on traffic conditions.
+The system simulates a **4×4 traffic network containing 16 signalized intersections** and evaluates adaptive AI-based traffic-signal control against a fixed-time baseline.
 
 ---
 
-# 📑 Table of Contents
+## 📑 Table of Contents
 
 1. [Project Overview](#-project-overview)
 2. [Features](#-features)
 3. [System Architecture](#-system-architecture)
-4. [AI Components](#-what-each-ai-component-does)
+4. [AI Components](#-ai-components)
 5. [Repository Structure](#-repository-structure)
-6. [Important Folders and Files](#-important-folders-and-files)
-7. [Requirements](#-requirements)
-8. [Installation](#-installation)
-9. [Running SUMO](#-running-sumo)
-10. [Data Collection](#-data-collection)
-11. [LSTM Prediction](#-lstm-prediction)
-12. [GNN](#-gnn)
-13. [MAPPO](#-mappo)
-14. [Emergency & VIP System](#-emergency--vip-system)
-15. [Evaluation](#-evaluation)
-16. [Final Results](#-final-results)
-17. [Visualization](#-visualization)
-18. [Complete Execution Order](#-complete-execution-order)
-19. [Existing Trained Models](#-existing-trained-models)
-20. [Important Output Files](#-important-output-files)
-21. [Troubleshooting](#-troubleshooting)
-22. [Project Summary](#-project-summary)
+6. [Understanding the Project Root](#-understanding-the-project-root)
+7. [Important Folders and Files](#-important-folders-and-files)
+8. [Recommended Development Environment](#-recommended-development-environment)
+9. [Requirements](#-requirements)
+10. [Installation](#-installation)
+11. [SUMO Installation and PATH Setup](#-sumo-installation-and-path-setup)
+12. [Running the Project](#-running-the-project)
+13. [Using app.py](#-using-apppy)
+14. [Data Collection](#-data-collection)
+15. [LSTM Training](#-lstm-training)
+16. [GNN Training](#-gnn-training)
+17. [MAPPO Training](#-mappo-training)
+18. [Emergency and VIP System](#-emergency-and-vip-system)
+19. [Evaluation](#-evaluation)
+20. [Final Results](#-final-results)
+21. [Output Files](#-output-files)
+22. [Complete Execution Order](#-complete-execution-order)
+23. [Existing Trained Models](#-existing-trained-models)
+24. [Troubleshooting](#-troubleshooting)
+25. [Project Summary](#-project-summary)
 
 ---
 
 # 📖 Project Overview
 
-Traditional fixed-time traffic signals cannot effectively respond to continuously changing traffic conditions.
+Traditional fixed-time traffic signals use predefined timing plans and cannot easily react to continuously changing traffic conditions.
 
-This project develops an **adaptive traffic signal control system** that combines traffic simulation, deep learning, graph neural networks, and multi-agent reinforcement learning.
+This project develops an **AI-based adaptive traffic signal control system** that combines:
 
-The system uses:
-
+* **SUMO** for traffic simulation
+* **TraCI** for Python ↔ SUMO communication
 * **LSTM** for temporal traffic prediction
 * **GNN** for spatial relationships between intersections
-* **MAPPO** for adaptive traffic-signal decisions
-* **Emergency/VIP modules** for priority handling
+* **MAPPO** for multi-agent traffic-signal control
+* **Emergency Priority** for emergency vehicles
+* **VIP Priority** for VIP vehicles
+* **Evaluation tools** for comparing AI control with fixed-time control
 
-The traffic network contains **16 signalized intersections**.
+The simulated network contains **16 signalized intersections**.
+
+The main objective is to reduce:
+
+* Waiting time
+* Queue length
+* Traffic congestion
+
+while improving:
+
+* Average vehicle speed
+* Overall traffic flow
 
 ---
 
-# ⭐ Features
+#  Features
 
-* 🚦 16-intersection traffic simulation
-* 🧠 LSTM-based traffic prediction
-* 🕸️ GNN-based spatial traffic analysis
-* 🤖 MAPPO-based multi-agent signal control
-* 🚑 Emergency vehicle priority
-* ⭐ VIP vehicle priority
-* 📊 Fixed-time vs AI-based performance evaluation
-* 💾 Pre-trained models included
-* 🔄 Complete data collection, training and evaluation pipeline
+*  16-intersection traffic simulation
+*  LSTM-based traffic prediction
+*  GNN-based spatial traffic analysis
+*  MAPPO-based multi-agent signal control
+*  Emergency vehicle priority
+*  VIP vehicle priority
+*  Fixed-time vs AI-based comparison
+*  Pre-trained LSTM, GNN and MAPPO models
+*  Automated result generation
+*  Traffic performance analysis
+*  Windows + VS Code workflow
+*  `app.py` main project launcher
 
 ---
 
-# 🏗️ System Architecture
+#  System Architecture
 
 ```text
-                    SUMO
-                     │
-                     ▼
-              Traffic Data
-                     │
-          ┌──────────┴──────────┐
-          ▼                     ▼
-        LSTM                  GNN
-   Traffic Prediction    Spatial Features
-          │                     │
-          └──────────┬──────────┘
-                     ▼
-                   MAPPO
-                     │
-              Signal Actions
-                     │
-                     ▼
-             Emergency / VIP
-                 Priority
-                     │
-                     ▼
-                    SUMO
-                     │
-                     ▼
-                Evaluation
-                     │
-                     ▼
-                Final Results
+                         SUMO
+                           │
+                           ▼
+                    Traffic Conditions
+                           │
+             ┌─────────────┴─────────────┐
+             │                           │
+             ▼                           ▼
+           LSTM                         GNN
+    Temporal Prediction          Spatial Relationships
+             │                           │
+             └─────────────┬─────────────┘
+                           ▼
+                         MAPPO
+                  Multi-Agent Control
+                           │
+                           ▼
+                  Traffic Signal Actions
+                           │
+                           ▼
+                 Emergency / VIP Priority
+                           │
+                           ▼
+                          SUMO
+                           │
+                           ▼
+                      Evaluation
+                           │
+                           ▼
+                     Final Results
 ```
 
 ---
 
-# 🧠 What Each AI Component Does
+#  AI Components
 
-| Component            | Purpose                                                |
-| -------------------- | ------------------------------------------------------ |
-| **SUMO**             | Simulates roads, vehicles and traffic signals          |
-| **TraCI**            | Connects Python with SUMO                              |
-| **LSTM**             | Predicts future traffic conditions                     |
-| **GNN**              | Learns relationships between neighboring intersections |
-| **MAPPO**            | Decides traffic-signal actions                         |
-| **Emergency Module** | Detects and prioritizes emergency vehicles             |
-| **VIP Module**       | Provides lower-priority control for VIP vehicles       |
+| Component        | Purpose                                                    |
+| ---------------- | ---------------------------------------------------------- |
+| SUMO             | Simulates roads, vehicles and traffic signals              |
+| TraCI            | Connects Python with SUMO                                  |
+| LSTM             | Predicts future traffic conditions                         |
+| GNN              | Represents relationships between neighboring intersections |
+| MAPPO            | Controls traffic signals using multiple agents             |
+| Emergency Module | Detects and prioritizes emergency vehicles                 |
+| VIP Module       | Provides priority handling for VIP vehicles                |
 
-Priority hierarchy:
+### Priority hierarchy
 
 ```text
-Emergency > VIP > Normal Traffic
+Emergency
+    ↓
+VIP
+    ↓
+Normal Traffic
 ```
+
+Emergency vehicles receive the highest priority.
 
 ---
 
@@ -125,6 +152,7 @@ Emergency > VIP > Normal Traffic
 Adaptive-Traffic-Control/
 │
 ├── README.md
+├── app.py
 ├── requirements.txt
 ├── .gitignore
 │
@@ -135,21 +163,73 @@ Adaptive-Traffic-Control/
 │
 ├── sumo/
 │   ├── network/
+│   │   ├── network.net.xml
+│   │   ├── nodes.nod.xml
+│   │   └── edges.edg.xml
+│   │
 │   ├── routes/
+│   │   ├── traffic.rou.xml
+│   │   └── emergency.rou.xml
+│   │
 │   ├── simulation/
+│   │   └── simulation.sumocfg
+│   │
 │   └── tls/
+│       └── traffic_lights.add.xml
 │
 ├── sumo-rl/
-│   └── sumo_rl/nets/RESCO/grid4x4/
+│   └── sumo_rl/
+│       └── nets/
+│           └── RESCO/
+│               └── grid4x4/
 │
 ├── src/
 │   ├── environment/
+│   │   ├── __init__.py
+│   │   ├── sumo_env.py
+│   │   ├── state.py
+│   │   ├── action.py
+│   │   ├── reward.py
+│   │   └── test_sumo_env.py
+│   │
 │   ├── data/
+│   │   ├── collector.py
+│   │   ├── dataset.py
+│   │   └── preprocessing.py
+│   │
 │   ├── prediction/
+│   │   ├── lstm.py
+│   │   └── predict.py
+│   │
 │   ├── graph/
+│   │   ├── graph_builder.py
+│   │   ├── graph_dataset.py
+│   │   └── gnn.py
+│   │
 │   ├── agents/
+│   │   ├── actor.py
+│   │   ├── critic.py
+│   │   ├── buffer.py
+│   │   └── mappo.py
+│   │
 │   ├── emergency/
+│   │   ├── detector.py
+│   │   ├── priority.py
+│   │   ├── route.py
+│   │   ├── route_generator.py
+│   │   ├── scenario_generator.py
+│   │   └── scenario_routes.py
+│   │
 │   ├── evaluation/
+│   │   ├── metrics.py
+│   │   ├── evaluate.py
+│   │   ├── comparison.py
+│   │   ├── final_results.py
+│   │   ├── final_emergency_comparison.py
+│   │   ├── plot_results.py
+│   │   ├── plot_lstm.py
+│   │   └── plot_control.py
+│   │
 │   └── final_visualizer.py
 │
 ├── training/
@@ -159,8 +239,17 @@ Adaptive-Traffic-Control/
 │
 ├── models/
 │   ├── lstm/
+│   │   └── traffic_lstm.pth
+│   │
 │   ├── gnn/
+│   │   └── traffic_gnn.pth
+│   │
 │   └── mappo/
+│       ├── actor_01.pth
+│       ├── ...
+│       ├── actor_16.pth
+│       ├── critic_01.pth
+│       └── ...
 │
 ├── evaluation/
 │   ├── results/
@@ -168,83 +257,140 @@ Adaptive-Traffic-Control/
 │   └── tables/
 │
 └── scripts/
+    ├── run_sumo.py
+    ├── collect_data.py
+    ├── train.py
+    ├── evaluate.py
+    ├── generate_emergency_scenario.py
+    ├── merge_traffic_scenario.py
+    ├── run_mappo_evaluation.py
+    ├── run_scenario.py
+    └── test_emergency_detection.py
 ```
 
 ---
 
-# 📂 Important Folders and Files
+# 📂 Understanding the Project Root
 
-## `configs/`
+The **project root** means the main folder containing `README.md`, `app.py`, `requirements.txt`, `src`, `scripts`, `training`, etc.
 
-Contains project configuration.
+For example, your current project can be located at:
 
-* `config.yaml` → General configuration
-* `network.yaml` → Network settings
-* `training.yaml` → Training parameters
+```text
+C:\Project\Adaptive-Traffic-Control
+```
+
+Therefore:
+
+```text
+<PROJECT_ROOT>
+```
+
+in this README means:
+
+```text
+C:\Project\Adaptive-Traffic-Control
+```
+
+for your computer.
+
+Another user can place the project somewhere completely different, for example:
+
+```text
+D:\Projects\Adaptive-Traffic-Control
+```
+
+or:
+
+```text
+C:\Users\User\Desktop\Adaptive-Traffic-Control
+```
+
+The project does **not** require a specific drive or folder.
+
+### Important
+
+Commands should normally be executed from:
+
+```text
+<PROJECT_ROOT>
+```
+
+For your computer:
+
+```powershell
+cd "C:\Project\Adaptive-Traffic-Control"
+```
+
+Then commands such as:
+
+```powershell
+python app.py
+```
+
+will work from the correct location.
 
 ---
 
-## `sumo/`
+#  What Each Main Directory Stores
 
-Contains the project's SUMO configuration.
-
-```text
-network/       → Road and intersection network
-routes/        → Normal/emergency routes
-simulation/    → SUMO simulation configuration
-tls/           → Traffic-light configuration
-```
-
-Main configuration:
-
-```text
-sumo/simulation/simulation.sumocfg
-```
+| Directory     | Stores                                             |
+| ------------- | -------------------------------------------------- |
+| `configs/`    | Configuration files                                |
+| `sumo/`       | Main SUMO network, routes and signal configuration |
+| `sumo-rl/`    | RESCO/grid4x4 reference network                    |
+| `src/`        | Main Python implementation                         |
+| `training/`   | Model training programs                            |
+| `models/`     | Trained AI models                                  |
+| `evaluation/` | CSV results, tables and plots                      |
+| `scripts/`    | Project execution and testing scripts              |
+| Project root  | README, `app.py`, requirements and Git files       |
 
 ---
 
-## `sumo-rl/`
+#  Important Source Directories
 
-Contains the RESCO `grid4x4` traffic network.
+## `src/environment/`
+
+Controls the SUMO environment.
 
 ```text
-sumo-rl/
-└── sumo_rl/
-    └── nets/
-        └── RESCO/
-            └── grid4x4/
+sumo_env.py
 ```
 
-The network contains **16 signalized intersections**.
+Handles the SUMO/TraCI environment.
+
+```text
+state.py
+```
+
+Handles traffic-state information.
+
+```text
+action.py
+```
+
+Handles traffic-signal actions.
+
+```text
+reward.py
+```
+
+Defines reinforcement-learning reward calculations.
 
 ---
 
-# 🧩 `src/`
-
-Contains the main implementation.
-
-### `src/environment/`
-
-Handles SUMO communication and traffic-signal control.
-
-```text
-sumo_env.py    → SUMO environment / TraCI
-state.py       → Traffic state
-action.py      → Signal actions
-reward.py      → Reinforcement-learning reward
-```
-
-### `src/data/`
+## `src/data/`
 
 Handles traffic data.
 
 ```text
-collector.py       → Collects traffic data
-dataset.py         → Creates datasets
-preprocessing.py   → Cleans/normalizes data
+collector.py
+dataset.py
+preprocessing.py
 ```
 
-Traffic features include:
+Important traffic features include:
 
 ```text
 Vehicle Count
@@ -253,52 +399,67 @@ Average Speed
 Queue Length
 ```
 
-### `src/prediction/`
+---
 
-Handles LSTM prediction.
+## `src/prediction/`
 
-```text
-lstm.py       → LSTM model
-predict.py    → Generates predictions
-```
-
-### `src/graph/`
-
-Handles graph processing.
+Contains the LSTM implementation.
 
 ```text
-graph_builder.py    → Builds intersection graph
-graph_dataset.py    → Prepares graph data
-gnn.py              → GNN model
+lstm.py
+predict.py
 ```
 
-### `src/agents/`
+---
 
-Contains MAPPO implementation.
+## `src/graph/`
+
+Contains the GNN implementation.
 
 ```text
-actor.py      → Selects actions
-critic.py     → Evaluates states
-buffer.py     → Stores experiences
-mappo.py      → MAPPO implementation
+graph_builder.py
+graph_dataset.py
+gnn.py
 ```
 
-### `src/emergency/`
+The 16 intersections are represented as graph nodes, allowing the system to model spatial relationships between neighboring intersections.
 
-Handles emergency and VIP vehicles.
+---
+
+## `src/agents/`
+
+Contains MAPPO.
 
 ```text
-detector.py
-priority.py
-route.py
-route_generator.py
-scenario_generator.py
-scenario_routes.py
+actor.py
+critic.py
+buffer.py
+mappo.py
 ```
 
-### `src/evaluation/`
+The system uses multiple agents to control the traffic intersections.
 
-Contains evaluation and comparison scripts.
+---
+
+## `src/emergency/`
+
+Handles emergency and VIP traffic.
+
+Main functionality includes:
+
+* Vehicle detection
+* Priority calculation
+* Route handling
+* Emergency scenario generation
+* VIP scenario handling
+
+---
+
+## `src/evaluation/`
+
+Contains result-processing and evaluation programs.
+
+Important files:
 
 ```text
 metrics.py
@@ -306,183 +467,407 @@ evaluate.py
 comparison.py
 final_results.py
 final_emergency_comparison.py
+plot_results.py
 ```
-
-### `src/final_visualizer.py`
-
-Generates final project visualizations automatically.
 
 ---
 
-# 💻 Requirements
+# 🖥️ Recommended Development Environment
 
-* Windows 10/11
+### Recommended
+
+**Visual Studio Code**
+
+VS Code is recommended because it provides:
+
+* Integrated terminal
+* Python support
+* Debugging
+* Git/GitHub integration
+* Easy project navigation
+
+### Other IDEs
+
+The project can also be opened using other Python-compatible IDEs, but the setup and commands in this README are written for **Windows + VS Code**.
+
+---
+
+#  Requirements
+
+### Operating System
+
+```text
+Windows 10 / Windows 11
+```
+
+### Software
+
 * Python 3.10+
 * SUMO 1.27.1 recommended
 * Git
-* VS Code recommended
+* Visual Studio Code recommended
+
+### Python packages
+
+All Python dependencies are listed in:
+
+```text
+requirements.txt
+```
 
 ---
 
 # ⚙️ Installation
 
-## 1. Clone Repository
+## 1. Clone the Repository
+
+Open the VS Code terminal and run:
 
 ```powershell
 git clone https://github.com/Harshul055/Adaptive-Traffic-Signal-Control-Simulation.git
+```
+
+Then enter the repository:
+
+```powershell
 cd Adaptive-Traffic-Signal-Control-Simulation
 ```
 
-## 2. Create Virtual Environment
+At this point, your terminal should be inside:
+
+```text
+<PROJECT_ROOT>
+```
+
+---
+
+# 2. Open the Project in VS Code
+
+From the project root:
+
+```powershell
+code .
+```
+
+If the `code` command is unavailable, open VS Code manually and select:
+
+```text
+File → Open Folder
+```
+
+Then select the project root.
+
+---
+
+# 3. Create a Python Virtual Environment
+
+From the project root:
 
 ```powershell
 python -m venv venv
 ```
 
-Activate:
+Activate it:
 
 ```powershell
 .\venv\Scripts\Activate.ps1
 ```
 
-## 3. Install Dependencies
+After activation, the terminal should show something similar to:
+
+```text
+(venv)
+```
+
+---
+
+# 4. Upgrade pip
+
+```powershell
+python -m pip install --upgrade pip
+```
+
+---
+
+# 5. Install Python Dependencies
+
+From the project root:
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-## 4. Verify Python
+Wait until all packages finish installing.
+
+---
+
+# 6. Verify Python
 
 ```powershell
 python --version
 ```
 
-## 5. Verify SUMO
+Example:
+
+```text
+Python 3.13.x
+```
+
+---
+
+# 🚦 SUMO Installation and PATH Setup
+
+SUMO can be installed in any suitable Windows directory.
+
+The project does **not** require SUMO to be installed in a specific folder.
+
+After installing SUMO, verify it from the VS Code terminal:
 
 ```powershell
 sumo-gui --version
 ```
 
-If SUMO is not recognized, add its `bin` directory to Windows PATH.
+A working installation should return the installed SUMO version.
 
-Typical location:
+For example:
+
+```text
+Eclipse SUMO sumo-gui Version 1.27.1
+```
+
+---
+
+## If `sumo-gui` is not recognized
+
+Add the SUMO `bin` directory to the Windows PATH.
+
+For example, if SUMO was installed here:
+
+```text
+C:\Program Files (x86)\Eclipse\Sumo
+```
+
+the required PATH entry is:
 
 ```text
 C:\Program Files (x86)\Eclipse\Sumo\bin
 ```
 
+The exact path depends on where SUMO was installed on your computer.
+
+After updating PATH, restart VS Code and test:
+
+```powershell
+sumo-gui --version
+```
+
 ---
 
-# ▶️ Running SUMO
+# ▶️ Running the Project
 
-Run the simulation:
+## First: Go to the Project Root
+
+Always make sure the VS Code terminal is inside the project root.
+
+For your current setup:
+
+```powershell
+cd "C:\Project\Adaptive-Traffic-Control"
+```
+
+Then activate the environment:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+---
+
+# 🚀 Using `app.py`
+
+`app.py` is the **main project launcher**.
+
+Instead of remembering multiple individual commands, you can start the application using:
+
+```powershell
+python app.py
+```
+
+It provides a central menu for the major project operations.
+
+The application can be used to access:
+
+```text
+SUMO Simulation
+Traffic Data Collection
+LSTM Training
+GNN Training
+MAPPO Training
+Emergency/VIP Scenario
+Scenario Merging
+MAPPO Evaluation
+Final Evaluation
+Final Result Processing
+Final Plot Generation
+Complete Final Pipeline
+Full Training + Evaluation Pipeline
+Output Locations
+```
+
+### Start the application
+
+From:
+
+```text
+<PROJECT_ROOT>
+```
+
+run:
+
+```powershell
+python app.py
+```
+
+---
+
+#  Running SUMO Directly
+
+To start SUMO-GUI manually:
 
 ```powershell
 sumo-gui -c sumo/simulation/simulation.sumocfg
 ```
 
-SUMO-GUI should display the road network, vehicles and traffic signals.
+SUMO-GUI should display:
+
+* Road network
+* Vehicles
+* Traffic signals
+* Vehicle movement
+* Signal phases
 
 ---
 
 # 📊 Data Collection
 
-Collect traffic data from SUMO:
+Traffic data can be collected from SUMO using:
 
 ```powershell
-python scripts/collect_data.py
+python scripts\collect_data.py
 ```
 
-Output:
+The generated data is stored in:
 
 ```text
-evaluation/results/traffic_data.csv
+evaluation/
+└── results/
+    └── traffic_data.csv
 ```
 
-Collected features:
+Main collected features:
 
-* Vehicle count
-* Waiting time
-* Average speed
-* Queue length
+```text
+vehicle_count
+waiting_time
+average_speed
+queue_length
+```
 
 ---
 
-# 🔮 LSTM Prediction
+#  LSTM Training
 
-Train the LSTM model:
+The LSTM learns temporal traffic patterns.
+
+Train the model:
 
 ```powershell
-python training/train_lstm.py
+python training\train_lstm.py
 ```
 
-Model:
+The trained model is stored at:
 
 ```text
-models/lstm/traffic_lstm.pth
+models/
+└── lstm/
+    └── traffic_lstm.pth
 ```
 
 Generate predictions:
 
 ```powershell
-python src/prediction/predict.py
+python src\prediction\predict.py
 ```
 
-Output:
+Predictions are stored at:
 
 ```text
-evaluation/results/lstm_predictions.csv
+evaluation/
+└── results/
+    └── lstm_predictions.csv
 ```
 
 ---
 
-# 🕸️ GNN
+#  GNN Training
 
-The GNN represents the 16 intersections as graph nodes and learns relationships between neighboring intersections.
+The GNN represents the traffic network as a graph.
+
+Each intersection is treated as a node and neighboring intersections are connected through graph relationships.
 
 Train the GNN:
 
 ```powershell
-python training/train_gnn.py
+python training\train_gnn.py
 ```
 
 Model:
 
 ```text
-models/gnn/traffic_gnn.pth
+models/
+└── gnn/
+    └── traffic_gnn.pth
 ```
+
+The project uses 16 traffic-light intersections.
 
 ---
 
-# 🤖 MAPPO
+#  MAPPO Training
 
-MAPPO treats each traffic-light intersection as an independent agent.
+MAPPO treats each traffic-light intersection as an individual agent.
 
 For this project:
 
 ```text
-16 Intersections
+16 intersections
        ↓
-16 MAPPO Agents
+16 MAPPO agents
 ```
 
 Train MAPPO:
 
 ```powershell
-python training/train_mappo.py
+python training\train_mappo.py
 ```
 
-Models are saved in:
+Models are stored in:
 
 ```text
-models/mappo/
+models/
+└── mappo/
+    ├── actor_01.pth
+    ├── ...
+    ├── actor_16.pth
+    ├── critic_01.pth
+    └── ...
 ```
 
 ---
 
-# 🚑 Emergency & VIP System
+# 🚑 Emergency and VIP System
 
-The system detects:
+The project supports special vehicles including:
 
 ```text
 Emergency
@@ -492,42 +877,48 @@ Police
 VIP
 ```
 
-Priority hierarchy:
+Priority order:
 
 ```text
 Emergency
-    ↓
+     ↓
 VIP
-    ↓
+     ↓
 Normal Traffic
 ```
 
-Emergency vehicles can override normal signal-control decisions when priority is required.
+Emergency traffic can receive priority over normal traffic-signal decisions.
 
 ---
 
 # 🚨 Emergency/VIP Scenario
 
-The final scenario contains:
+The tested scenario contains:
 
 ```text
 5 Emergency Vehicles
-+
+        +
 5 VIP Vehicles
-=
+        =
 10 Special Vehicles
 ```
 
 Generate the scenario:
 
 ```powershell
-python scripts/merge_traffic_scenario.py
+python scripts\generate_emergency_scenario.py
 ```
 
-Test detection:
+Merge the normal and special traffic:
 
 ```powershell
-python scripts/test_emergency_detection.py
+python scripts\merge_traffic_scenario.py
+```
+
+Test emergency detection:
+
+```powershell
+python scripts\test_emergency_detection.py
 ```
 
 ---
@@ -542,24 +933,32 @@ Fixed-Time Control
 GNN + MAPPO + Emergency/VIP
 ```
 
-Main metrics:
+The main metrics are:
 
-| Metric        | Desired Direction |
-| ------------- | ----------------- |
-| Vehicle Count | Lower             |
-| Waiting Time  | Lower             |
-| Average Speed | Higher            |
-| Queue Length  | Lower             |
+| Metric        | Better Direction |
+| ------------- | ---------------- |
+| Vehicle Count | Lower            |
+| Waiting Time  | Lower            |
+| Average Speed | Higher           |
+| Queue Length  | Lower            |
 
-Run evaluation:
+Run MAPPO evaluation:
 
 ```powershell
-python scripts/run_mappo_evaluation.py
+python scripts\run_mappo_evaluation.py
+```
+
+Run final evaluation:
+
+```powershell
+python scripts\evaluate.py
 ```
 
 ---
 
 # 🏆 Final Results
+
+The tested final scenario produced the following results:
 
 | Metric        | Fixed-Time | GNN + MAPPO + Emergency/VIP |       Improvement |
 | ------------- | ---------: | --------------------------: | ----------------: |
@@ -568,87 +967,221 @@ python scripts/run_mappo_evaluation.py
 | Average Speed |   6.72 m/s |                   13.14 m/s | **95.51% higher** |
 | Queue Length  |      26.67 |                        8.78 |  **67.06% lower** |
 
-These results are from the project's tested simulation scenario.
+These values represent the tested simulation scenario and are provided as the project's recorded evaluation results.
+
+---
+
+# 📁 Output Files
+
+Important generated files include:
+
+```text
+evaluation/
+│
+├── results/
+│   ├── traffic_data.csv
+│   ├── lstm_predictions.csv
+│   ├── fixed_time_results.csv
+│   ├── mappo_results.csv
+│   ├── mappo_final_results.csv
+│   ├── comparison_results.csv
+│   └── final_emergency_comparison.csv
+│
+├── plots/
+│   └── final/
+│
+└── tables/
+    └── final_results.csv
+```
 
 ---
 
 # 📊 Visualization
 
-Generate the final plots:
+The project contains visualization scripts for analyzing the final results.
+
+Generate final visualizations using:
 
 ```powershell
-python src/final_visualizer.py
+python src\final_visualizer.py
 ```
 
-Output directory:
+Additional evaluation plotting functionality is available through:
+
+```powershell
+python src\evaluation\plot_results.py
+```
+
+Final plots are stored under:
 
 ```text
-evaluation/plots/final/
+evaluation\plots\
 ```
 
-The visualization pipeline includes:
+and final visualization output can be stored under:
 
-* Traffic metric comparisons
-* Improvement analysis
-* Time-series analysis
-* Traffic distributions
-* Correlation analysis
-* Final results tables
+```text
+evaluation\plots\final\
+```
 
 ---
 
 # 🔄 Complete Execution Order
 
-For a complete reproduction from scratch:
+## From a Fresh Installation
+
+Run the following steps from:
 
 ```text
-1. Install Python + SUMO
-          ↓
-2. Install requirements
-          ↓
-3. Test SUMO
-          ↓
-4. Collect traffic data
-          ↓
-5. Train LSTM
-          ↓
-6. Generate LSTM predictions
-          ↓
-7. Train GNN
-          ↓
-8. Generate Emergency/VIP scenario
-          ↓
-9. Train MAPPO
-          ↓
-10. Run MAPPO evaluation
-          ↓
-11. Compare with Fixed-Time
-          ↓
-12. Generate final visualizations
+<PROJECT_ROOT>
 ```
 
-Commands:
+### Step 1 — Install dependencies
 
 ```powershell
-python scripts/collect_data.py
-python training/train_lstm.py
-python src/prediction/predict.py
-python training/train_gnn.py
-python scripts/merge_traffic_scenario.py
-python training/train_mappo.py
-python scripts/run_mappo_evaluation.py
-python scripts/evaluate.py
-python src/final_visualizer.py
+pip install -r requirements.txt
 ```
+
+### Step 2 — Verify SUMO
+
+```powershell
+sumo-gui --version
+```
+
+### Step 3 — Test SUMO
+
+```powershell
+python scripts\run_sumo.py
+```
+
+### Step 4 — Collect traffic data
+
+```powershell
+python scripts\collect_data.py
+```
+
+### Step 5 — Train LSTM
+
+```powershell
+python training\train_lstm.py
+```
+
+### Step 6 — Generate LSTM predictions
+
+```powershell
+python src\prediction\predict.py
+```
+
+### Step 7 — Train GNN
+
+```powershell
+python training\train_gnn.py
+```
+
+### Step 8 — Train MAPPO
+
+```powershell
+python training\train_mappo.py
+```
+
+### Step 9 — Generate Emergency/VIP scenario
+
+```powershell
+python scripts\generate_emergency_scenario.py
+```
+
+### Step 10 — Merge traffic scenario
+
+```powershell
+python scripts\merge_traffic_scenario.py
+```
+
+### Step 11 — Run MAPPO evaluation
+
+```powershell
+python scripts\run_mappo_evaluation.py
+```
+
+### Step 12 — Run final evaluation
+
+```powershell
+python scripts\evaluate.py
+```
+
+### Step 13 — Process final results
+
+```powershell
+python src\evaluation\final_results.py
+```
+
+### Step 14 — Generate plots
+
+```powershell
+python src\evaluation\plot_results.py
+```
+
+---
+
+# ⚡ Recommended Way When Models Already Exist
+
+The repository already contains trained models.
+
+Therefore, **you do not need to retrain the models just to reproduce an evaluation using those existing checkpoints**.
+
+The simplified workflow is:
+
+```text
+Existing Models
+      ↓
+Generate Emergency/VIP Scenario
+      ↓
+Merge Traffic Scenario
+      ↓
+Run MAPPO Evaluation
+      ↓
+Final Evaluation
+      ↓
+Final Results
+      ↓
+Final Plots
+```
+
+You can also use:
+
+```powershell
+python app.py
+```
+
+and select the complete final-result pipeline.
+
+---
+
+# 📌 Main Files to Run for Final Results
+
+| File                                     | Purpose                         |
+| ---------------------------------------- | ------------------------------- |
+| `app.py`                                 | Main project launcher           |
+| `scripts\run_sumo.py`                    | Starts/tests SUMO               |
+| `scripts\collect_data.py`                | Collects traffic data           |
+| `training\train_lstm.py`                 | Trains LSTM                     |
+| `training\train_gnn.py`                  | Trains GNN                      |
+| `training\train_mappo.py`                | Trains MAPPO                    |
+| `scripts\generate_emergency_scenario.py` | Generates emergency/VIP traffic |
+| `scripts\merge_traffic_scenario.py`      | Combines traffic scenarios      |
+| `scripts\run_mappo_evaluation.py`        | Evaluates trained MAPPO         |
+| `scripts\evaluate.py`                    | Performs evaluation             |
+| `src\evaluation\final_results.py`        | Processes final results         |
+| `src\evaluation\plot_results.py`         | Generates final plots           |
 
 ---
 
 # 💾 Existing Trained Models
 
-Pre-trained models are already included:
+The repository contains trained model files:
 
 ```text
 models/
+│
 ├── lstm/
 │   └── traffic_lstm.pth
 │
@@ -656,44 +1189,42 @@ models/
 │   └── traffic_gnn.pth
 │
 └── mappo/
-    ├── actor_01.pth ... actor_16.pth
-    └── critic_01.pth ... critic_16.pth
+    ├── actor_01.pth
+    ├── ...
+    ├── actor_16.pth
+    ├── critic_01.pth
+    └── ...
 ```
 
-Therefore, retraining is not required simply to evaluate the existing trained system.
-
----
-
-# 📌 Important Output Files
-
-| File                             | Purpose                |
-| -------------------------------- | ---------------------- |
-| `traffic_data.csv`               | Collected traffic data |
-| `lstm_predictions.csv`           | LSTM predictions       |
-| `fixed_time_results.csv`         | Fixed-time baseline    |
-| `mappo_final_results.csv`        | Final MAPPO results    |
-| `final_emergency_comparison.csv` | Final comparison       |
-| `final_results.csv`              | Final results table    |
+Therefore, a user can use the existing trained models for evaluation without starting the complete training process again.
 
 ---
 
 # 🔧 Troubleshooting
 
-### `No module named 'src'`
+## `No module named 'src'`
 
-Run commands from the project root:
+Make sure the terminal is inside the project root.
+
+For your setup:
 
 ```powershell
-cd C:\Project\Adaptive-Traffic-Signal-Control-Simulation
+cd "C:\Project\Adaptive-Traffic-Control"
 ```
 
-For module-based tests:
+Then run the command again.
+
+For module-based Python tests, use:
 
 ```powershell
 python -m src.agents.test_mappo
 ```
 
-### SUMO not found
+instead of directly executing the module file.
+
+---
+
+## SUMO not found
 
 Check:
 
@@ -701,42 +1232,160 @@ Check:
 sumo-gui --version
 ```
 
-If necessary, add:
+If Windows cannot find SUMO, add the SUMO `bin` directory to PATH.
+
+Example:
 
 ```text
 C:\Program Files (x86)\Eclipse\Sumo\bin
 ```
 
-to PATH.
+Restart VS Code after changing PATH.
 
-### Missing Python packages
+---
+
+## Python packages are missing
+
+Run:
 
 ```powershell
 python -m pip install --upgrade pip
+```
+
+Then:
+
+```powershell
 pip install -r requirements.txt
 ```
 
 ---
 
-# 👨‍💻 Project Summary
+## Virtual environment is not activated
+
+Run:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+Then verify:
+
+```powershell
+python --version
+```
+
+---
+
+## `app.py` cannot find a file
+
+Make sure `app.py` is located at the **project root**:
+
+```text
+Adaptive-Traffic-Control/
+│
+├── app.py
+├── README.md
+├── requirements.txt
+├── src/
+├── scripts/
+├── training/
+└── ...
+```
+
+Run it from the project root:
+
+```powershell
+python app.py
+```
+
+Do not move `app.py` into `src/`, `scripts/`, or `training/`.
+
+---
+
+# 📍 Important Path Rule
+
+The project should always be treated relative to its root.
+
+For example, if your project is:
+
+```text
+C:\Project\Adaptive-Traffic-Control
+```
+
+then:
+
+```text
+<PROJECT_ROOT>\app.py
+```
+
+means:
+
+```text
+C:\Project\Adaptive-Traffic-Control\app.py
+```
+
+and:
+
+```text
+<PROJECT_ROOT>\models\lstm\traffic_lstm.pth
+```
+
+means:
+
+```text
+C:\Project\Adaptive-Traffic-Control\models\lstm\traffic_lstm.pth
+```
+
+This allows the repository to be placed anywhere on a Windows computer without changing the project structure.
+
+---
+
+# 🎯 Project Summary
 
 This project combines:
 
 ```text
 SUMO
- +
+  +
 TraCI
- +
+  +
 LSTM
- +
+  +
 GNN
- +
+  +
 MAPPO
- +
+  +
 Emergency Priority
- +
+  +
 VIP Priority
+  +
+Evaluation
 ```
 
-to create an adaptive multi-intersection traffic signal control system that responds to changing traffic conditions and provides priority handling for special vehicles.
-﻿
+to create an adaptive multi-intersection traffic signal control system.
+
+The overall concept is:
+
+```text
+Traffic Simulation
+       ↓
+Traffic Data
+       ↓
+LSTM Prediction
+       ↓
+GNN Spatial Representation
+       ↓
+MAPPO Multi-Agent Control
+       ↓
+Traffic Signal Actions
+       ↓
+Emergency/VIP Priority
+       ↓
+SUMO Simulation
+       ↓
+Performance Evaluation
+       ↓
+Final Results
+```
+
+The project demonstrates how temporal prediction, spatial traffic relationships, and multi-agent reinforcement learning can be combined for adaptive traffic-signal control.
