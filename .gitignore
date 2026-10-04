@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Machine learning checkpoints / generated models
+*.pth
+*.pt
+*.ckpt
+
+# Generated evaluation plots
+evaluation/plots/final/
+
+# SUMO temporary files
+*.netstate.xml
+*.tripinfo.xml
+*.fcd.xml
+*.dump.xml
+*.log.xml
+*.emission.xml
+*.summary.xml
+*.vehroute.xml
+
+# SUMO generated GUI/config files
+*.sgr
+*.sumocfg~
+
+# Large/local reference repository
+
+# Secrets
+.env
+.env.*
+!.env.example
