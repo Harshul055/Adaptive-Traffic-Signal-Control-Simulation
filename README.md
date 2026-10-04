@@ -2140,9 +2140,7 @@ Core concept:
 
 ---
 
-# 📜 License
 
-Add the appropriate license for your project before distributing the repository publicly.
 
 ---
 
