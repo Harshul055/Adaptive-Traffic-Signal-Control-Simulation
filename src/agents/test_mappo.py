@@ -11,7 +11,7 @@ print("======================================")
 
 
 # Create dummy GNN state
-state = torch.randn(32)
+state = torch.randn(36)
 
 
 # --------------------------------------
@@ -19,7 +19,7 @@ state = torch.randn(32)
 # --------------------------------------
 
 actor = Actor(
-    input_size=32,
+    input_size=36,
     hidden_size=64,
     action_size=4
 )
@@ -42,11 +42,11 @@ print(
 # --------------------------------------
 
 critic = Critic(
-    input_size=512,
+    input_size=576,
     hidden_size=64
 )
 
-global_state = torch.randn(512)
+global_state = torch.randn(576)
 value = critic(
     global_state.unsqueeze(0)
 )
@@ -65,7 +65,7 @@ print(
 # --------------------------------------
 
 agent = MAPPO(
-    state_size=32,
+    state_size=36,
     action_size=4
 )
 
