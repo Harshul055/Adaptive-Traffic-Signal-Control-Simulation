@@ -387,9 +387,6 @@ def train():
                 "SUMO-GUI connected successfully."
             )
 
-            # Establish the initial observation before the first action.
-            traci.simulationStep()
-
             # ==================================================
             # ROLLOUT STORAGE
             # ==================================================
@@ -451,11 +448,10 @@ def train():
             ):
 
                 # ==================================================
-                # 1. ADVANCE SUMO
+                # 1. OBSERVE CURRENT STATE
                 # ==================================================
-
-                traci.simulationStep()
-
+                # Select the action from the current state first.
+                # SUMO advances exactly once below, after the action.
 
                 # ==================================================
                 # 2. DETECT EMERGENCY VEHICLES
