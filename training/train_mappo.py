@@ -74,7 +74,8 @@ from src.emergency.priority import (
 # SUMO SETTINGS
 # ==================================================
 
-SUMO_HOME = (
+SUMO_HOME = os.environ.get(
+    "SUMO_HOME",
     r"C:\Program Files (x86)\Eclipse\Sumo"
 )
 
@@ -84,10 +85,10 @@ SUMO_BINARY = os.path.join(
     "sumo-gui.exe"
 )
 
-SUMO_CONFIG = (
-    r"C:\Project\Adaptive-Traffic-Control"
-    r"\sumo-rl\sumo_rl\nets\RESCO\grid4x4"
-    r"\grid4x4.sumocfg"
+SUMO_CONFIG = os.path.join(
+    PROJECT_ROOT,
+    "sumo-rl", "sumo_rl", "nets", "RESCO",
+    "grid4x4", "grid4x4.sumocfg"
 )
 
 
