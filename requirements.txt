@@ -7,5 +7,3 @@ stable-baselines3
 traci
 pyyaml
 torch-geometric
-scikit-learn
-
