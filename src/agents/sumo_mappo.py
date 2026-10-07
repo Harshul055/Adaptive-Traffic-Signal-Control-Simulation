@@ -18,7 +18,9 @@ from src.graph.graph_builder import create_adjacency_matrix
 from src.graph.gnn import TrafficGNN
 from src.graph.graph_dataset import create_node_features
 from src.agents.mappo import MAPPO
-from src.environment.state import get_all_local_states
+from src.prediction.traffic_predictor import OnlineTrafficPredictor
+from src.environment.action import apply_action
+from src.environment.state import get_all_local_states, get_traffic_state
 
 
 SUMO_HOME = os.environ.get(
@@ -32,11 +34,7 @@ SUMO_CONFIG = os.path.join(
     "grid4x4", "grid4x4.sumocfg"
 )
 
-SUMO_BINARY = os.path.join(
-    SUMO_HOME,
-    "bin",
-    "sumo-gui.exe"
-)
+SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo.exe")
 
 
 print("\n======================================")
@@ -48,11 +46,7 @@ print("======================================")
 # 1. Start SUMO
 # --------------------------------------
 
-traci.start([
-    SUMO_BINARY,
-    "-c",
-    SUMO_CONFIG
-])
+traci.start([SUMO_BINARY, "-c", SUMO_CONFIG, "--delay", "0", "--seed", "42"])
 
 print("SUMO started successfully!")
 
@@ -108,8 +102,9 @@ for _ in range(len(traffic_lights)):
 
     agents.append(
         MAPPO(
-            state_size=32,
-            action_size=4
+            state_size=36,
+            action_size=4,
+            global_state_size=576
         )
     )
 
@@ -154,7 +149,7 @@ for step in range(1000):
     )
 
     # Centralized MAPPO critic state
-    global_state = gnn_output.flatten()
+    global_state = torch.cat([gnn_output, torch.zeros((len(traffic_lights), 4))], dim=1).flatten()
 
 
     # ------------------------------
@@ -167,7 +162,7 @@ for step in range(1000):
         len(traffic_lights)
     ):
 
-        state = gnn_output[i]
+        state = torch.cat([gnn_output[i], torch.zeros(4)])
 
         action, _, _ = (
             agents[i].select_action(
@@ -189,7 +184,7 @@ for step in range(1000):
         )
         if phase_count > 0:
             phase = actions[i] % phase_count
-            traci.trafficlight.setPhase(tls_id, phase)
+            apply_action(tls_id, actions[i], min_phase_duration=10)
 
     if step % 10 == 0:
         print("\nStep:", step)

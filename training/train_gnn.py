@@ -23,6 +23,8 @@ OUTPUT_FEATURES = 32
 LEARNING_RATE = 0.001
 EPOCHS = 50
 MAX_STEPS = 500
+SUMO_DELAY_MS = 0
+SUMO_SEED = 42
 
 MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "gnn")
 MODEL_FILE = os.path.join(MODEL_DIR, "traffic_gnn.pth")
@@ -66,7 +68,7 @@ def collect_training_snapshots(adjacency):
 
     snapshots = []
 
-    traci.start([SUMO_BINARY, "-c", SUMO_CONFIG])
+    traci.start([SUMO_BINARY, "-c", SUMO_CONFIG, "--delay", str(SUMO_DELAY_MS), "--seed", str(SUMO_SEED)])
     try:
         for _ in range(MAX_STEPS):
             local_states = get_all_local_states()

@@ -1,411 +1,279 @@
 import traci
 
-from src.emergency.detector import (
-    get_emergency_vehicles,
-    get_vip_vehicles
-)
-
-
-# ==================================================
-# FIND TRAFFIC LIGHTS CONTROLLING A ROAD
-# ==================================================
 
 def get_controlled_traffic_lights(road_id):
-
     traffic_lights = []
-
     for tls_id in traci.trafficlight.getIDList():
-
-        controlled_links = traci.trafficlight.getControlledLinks(
-            tls_id
-        )
-
-        for link_group in controlled_links:
-
+        for link_group in traci.trafficlight.getControlledLinks(tls_id):
             if not link_group:
                 continue
-
             for link in link_group:
-
-                if len(link) < 1:
+                if not link:
                     continue
-
-                incoming_lane = link[0]
-
                 try:
-                    lane_edge = traci.lane.getEdgeID(
-                        incoming_lane
-                    )
-                except Exception:
+                    lane_edge = traci.lane.getEdgeID(link[0])
+                except traci.TraCIException:
                     continue
-
                 if lane_edge == road_id:
-
-                    if tls_id not in traffic_lights:
-                        traffic_lights.append(tls_id)
-
+                    traffic_lights.append(tls_id)
                     break
-
             if tls_id in traffic_lights:
                 break
-
     return traffic_lights
 
 
-# ==================================================
-# FIND TRAFFIC LIGHT CONTROLLING A LANE
-# ==================================================
-
 def get_lane_traffic_light(lane_id):
-
     for tls_id in traci.trafficlight.getIDList():
-
-        controlled_links = traci.trafficlight.getControlledLinks(
-            tls_id
-        )
-
-        for link_index, link_group in enumerate(controlled_links):
-
+        for link_index, link_group in enumerate(
+            traci.trafficlight.getControlledLinks(tls_id)
+        ):
             if not link_group:
                 continue
-
             for link in link_group:
-
-                if len(link) < 1:
-                    continue
-
-                incoming_lane = link[0]
-
-                if incoming_lane == lane_id:
-
+                if link and link[0] == lane_id:
                     return tls_id, link_index
-
     return None, None
 
 
-# ==================================================
-# FIND GREEN PHASES FOR A SIGNAL
-# ==================================================
-
 def get_green_phases(tls_id, signal_index):
-
     green_phases = []
-
-    logic = traci.trafficlight.getAllProgramLogics(
-        tls_id
-    )
-
+    logic = traci.trafficlight.getAllProgramLogics(tls_id)
     if not logic:
         return green_phases
 
-    phases = logic[0].getPhases()
-
-    for phase_number, phase in enumerate(phases):
-
-        if signal_index >= len(phase.state):
-            continue
-
-        signal_state = phase.state[signal_index].upper()
-
-        if signal_state == "G":
+    for phase_number, phase in enumerate(logic[0].getPhases()):
+        if signal_index < len(phase.state) and phase.state[signal_index].upper() == "G":
             green_phases.append(phase_number)
-
     return green_phases
 
 
-# ==================================================
-# FIND CLOSEST TRAFFIC LIGHT
-# ==================================================
-
-def select_priority_signal(
-    vehicle_id,
-    traffic_lights
-):
-
-    if not traffic_lights:
-        return None
-
-    if vehicle_id not in traci.vehicle.getIDList():
-        return None
-
-    vehicle_position = traci.vehicle.getPosition(
-        vehicle_id
+def _is_green_phase(tls_id, phase_index):
+    logic = traci.trafficlight.getAllProgramLogics(tls_id)
+    if not logic:
+        return False
+    phases = logic[0].getPhases()
+    return (
+        0 <= phase_index < len(phases)
+        and "G" in phases[phase_index].state.upper()
     )
 
+
+def _next_green_phase(tls_id, current_phase):
+    logic = traci.trafficlight.getAllProgramLogics(tls_id)
+    if not logic:
+        return None
+
+    phases = logic[0].getPhases()
+    if not phases:
+        return None
+
+    count = len(phases)
+    for offset in range(1, count + 1):
+        candidate = (current_phase + offset) % count
+        if _is_green_phase(tls_id, candidate):
+            return candidate
+    return None
+
+
+def _phase_timing(tls_id):
+    total = float(traci.trafficlight.getPhaseDuration(tls_id))
+    now = float(traci.simulation.getTime())
+    remaining = max(0.0, float(traci.trafficlight.getNextSwitch(tls_id)) - now)
+    elapsed = max(0.0, total - remaining)
+    return elapsed, remaining
+
+
+def _request_next_green(tls_id, minimum_green=10.0):
+    """End the current green safely; SUMO runs its configured yellow phase."""
+    phase = traci.trafficlight.getPhase(tls_id)
+    if not _is_green_phase(tls_id, phase):
+        return False
+
+    elapsed, _ = _phase_timing(tls_id)
+    remaining = max(0.0, minimum_green - elapsed)
+    traci.trafficlight.setPhaseDuration(tls_id, remaining)
+    return True
+
+
+def select_priority_signal(vehicle_id, traffic_lights):
+    if not traffic_lights or vehicle_id not in traci.vehicle.getIDList():
+        return None
+
+    vehicle_position = traci.vehicle.getPosition(vehicle_id)
     best_signal = None
     best_distance = float("inf")
 
     for tls_id in traffic_lights:
-
-        controlled_links = traci.trafficlight.getControlledLinks(
-            tls_id
-        )
-
         signal_position = None
-
-        for link_group in controlled_links:
-
+        for link_group in traci.trafficlight.getControlledLinks(tls_id):
             if not link_group:
                 continue
-
             for link in link_group:
-
-                if len(link) < 1:
+                if not link:
                     continue
-
-                incoming_lane = link[0]
-
                 try:
-                    lane_shape = traci.lane.getShape(
-                        incoming_lane
-                    )
-                except Exception:
+                    shape = traci.lane.getShape(link[0])
+                except traci.TraCIException:
                     continue
-
-                if not lane_shape:
-                    continue
-
-                signal_position = lane_shape[-1]
-
-                break
-
+                if shape:
+                    signal_position = shape[-1]
+                    break
             if signal_position is not None:
                 break
 
         if signal_position is None:
             continue
 
-        dx = (
-            vehicle_position[0]
-            - signal_position[0]
-        )
-
-        dy = (
-            vehicle_position[1]
-            - signal_position[1]
-        )
-
-        distance = (
-            dx ** 2 + dy ** 2
-        ) ** 0.5
+        dx = vehicle_position[0] - signal_position[0]
+        dy = vehicle_position[1] - signal_position[1]
+        distance = (dx * dx + dy * dy) ** 0.5
 
         if distance < best_distance:
-
             best_distance = distance
             best_signal = tls_id
 
     return best_signal
 
 
-# ==================================================
-# GET EMERGENCY PRIORITY SIGNAL
-# ==================================================
-
-def get_emergency_priority(
-    vehicle_id,
-    road_id
-):
-
-    traffic_lights = get_controlled_traffic_lights(
-        road_id
-    )
-
-    priority_signal = select_priority_signal(
+def get_emergency_priority(vehicle_id, road_id):
+    return select_priority_signal(
         vehicle_id,
-        traffic_lights
+        get_controlled_traffic_lights(road_id),
     )
 
-    return priority_signal
 
+def _priority_result(vehicle_id, tls_id, lane_id, phase, changed, granted):
+    return {
+        "vehicle_id": vehicle_id,
+        "tls_id": tls_id,
+        "lane_id": lane_id,
+        "phase": phase,
+        "changed": changed,
+        "priority_granted": granted,
+    }
 
-# ==================================================
-# GIVE EMERGENCY VEHICLE PRIORITY
-# ==================================================
 
 def give_emergency_priority(vehicle_id):
     if vehicle_id not in traci.vehicle.getIDList():
         return None
 
     lane_id = traci.vehicle.getLaneID(vehicle_id)
-
     if not lane_id:
         return None
 
     tls_id, signal_index = get_lane_traffic_light(lane_id)
-
     if tls_id is None:
         return None
 
     green_phases = get_green_phases(tls_id, signal_index)
-
     if not green_phases:
         return None
 
     current_phase = traci.trafficlight.getPhase(tls_id)
 
-    # Already in a suitable green phase
     if current_phase in green_phases:
-        return {
-            "vehicle_id": vehicle_id,
-            "tls_id": tls_id,
-            "lane_id": lane_id,
-            "phase": current_phase,
-            "changed": False
-        }
+        return _priority_result(
+            vehicle_id, tls_id, lane_id, current_phase, False, True
+        )
 
-    # Select the first suitable green phase
-    target_phase = green_phases[0]
+    # Never jump directly into an arbitrary green. Let the existing
+    # program finish its current yellow/clearance phase first.
+    next_green = _next_green_phase(tls_id, current_phase)
+    if next_green is None or next_green not in green_phases:
+        return None
 
-    # Do not reset the signal if it is already on the target phase
-    if current_phase != target_phase:
-        traci.trafficlight.setPhase(tls_id, target_phase)
+    if _is_green_phase(tls_id, current_phase):
+        changed = _request_next_green(tls_id)
+        return _priority_result(
+            vehicle_id, tls_id, lane_id, current_phase, changed, changed
+        )
 
-        return {
-            "vehicle_id": vehicle_id,
-            "tls_id": tls_id,
-            "lane_id": lane_id,
-            "phase": target_phase,
-            "changed": True
-        }
+    # During yellow/transition, do not interrupt the safety clearance.
+    return _priority_result(
+        vehicle_id, tls_id, lane_id, current_phase, False, False
+    )
 
-    return {
-        "vehicle_id": vehicle_id,
-        "tls_id": tls_id,
-        "lane_id": lane_id,
-        "phase": current_phase,
-        "changed": False
-    }
-
-
-
-# ==================================================
-# GIVE VIP VEHICLE PRIORITY
-# ==================================================
 
 def give_vip_priority(vehicle_id):
     if vehicle_id not in traci.vehicle.getIDList():
         return None
 
-    # Emergency vehicles always have higher priority than VIP
-    emergency_vehicles = get_emergency_vehicles()
+    from src.emergency.detector import get_emergency_vehicles
 
-    if emergency_vehicles:
+    if get_emergency_vehicles():
         return {
             "vehicle_id": vehicle_id,
             "priority_granted": False,
-            "reason": "Emergency vehicle has higher priority"
+            "reason": "Emergency vehicle has higher priority",
         }
 
     lane_id = traci.vehicle.getLaneID(vehicle_id)
-
     if not lane_id:
         return None
 
     tls_id, signal_index = get_lane_traffic_light(lane_id)
-
     if tls_id is None:
         return None
 
     green_phases = get_green_phases(tls_id, signal_index)
-
     if not green_phases:
         return None
 
     current_phase = traci.trafficlight.getPhase(tls_id)
 
     if current_phase in green_phases:
-        return {
-            "vehicle_id": vehicle_id,
-            "tls_id": tls_id,
-            "lane_id": lane_id,
-            "phase": current_phase,
-            "changed": False,
-            "priority_granted": True
-        }
+        return _priority_result(
+            vehicle_id, tls_id, lane_id, current_phase, False, True
+        )
 
-    target_phase = green_phases[0]
+    next_green = _next_green_phase(tls_id, current_phase)
+    if next_green is None or next_green not in green_phases:
+        return None
 
-    traci.trafficlight.setPhase(tls_id, target_phase)
+    if _is_green_phase(tls_id, current_phase):
+        changed = _request_next_green(tls_id)
+        return _priority_result(
+            vehicle_id, tls_id, lane_id, current_phase, changed, changed
+        )
 
-    return {
-        "vehicle_id": vehicle_id,
-        "tls_id": tls_id,
-        "lane_id": lane_id,
-        "phase": target_phase,
-        "changed": True,
-        "priority_granted": True
-    }
+    return _priority_result(
+        vehicle_id, tls_id, lane_id, current_phase, False, False
+    )
+
 
 def get_vehicle_priority(vehicle_id):
-    """
-    Returns priority level:
-    2 = Emergency
-    1 = VIP
-    0 = Normal
-    """
-
     if vehicle_id not in traci.vehicle.getIDList():
         return 0
 
     vehicle_type = traci.vehicle.getTypeID(vehicle_id).lower()
 
-    if vehicle_type in ["emergency", "ambulance", "fire", "police"]:
+    if vehicle_type in {"emergency", "ambulance", "fire", "police"}:
         return 2
-
     if vehicle_type == "vip":
         return 1
-
     return 0
 
 
 def compare_vehicle_priority(vehicle_id_1, vehicle_id_2):
-    """
-    Compares two vehicles.
-
-    Returns:
-        vehicle_id_1 → if vehicle 1 has higher priority
-        vehicle_id_2 → if vehicle 2 has higher priority
-        None          → if both have equal priority
-    """
-
     priority_1 = get_vehicle_priority(vehicle_id_1)
     priority_2 = get_vehicle_priority(vehicle_id_2)
 
     if priority_1 > priority_2:
         return vehicle_id_1
-
     if priority_2 > priority_1:
         return vehicle_id_2
-
     return None
 
 
 def get_highest_priority_vehicle(vehicle_ids):
-    """
-    Returns the highest-priority vehicle from a list.
-    """
-
     if not vehicle_ids:
         return None
 
-    highest_vehicle = None
-    highest_priority = -1
+    return max(
+        vehicle_ids,
+        key=get_vehicle_priority,
+    )
 
-    for vehicle_id in vehicle_ids:
-        priority = get_vehicle_priority(vehicle_id)
-
-        if priority > highest_priority:
-            highest_priority = priority
-            highest_vehicle = vehicle_id
-
-    return highest_vehicle
-
-# ==================================================
-# TEST
-# ==================================================
 
 if __name__ == "__main__":
-
-    print(
-        "Emergency and VIP priority module loaded successfully."
-    )
+    print("Emergency and VIP priority module loaded successfully.")

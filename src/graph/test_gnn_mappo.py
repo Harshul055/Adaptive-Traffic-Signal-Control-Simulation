@@ -26,7 +26,7 @@ from src.agents.mappo import MAPPO
 # -----------------------------
 
 SUMO_HOME = os.environ.get("SUMO_HOME", r"C:\Program Files (x86)\Eclipse\Sumo")
-SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo-gui.exe")
+SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo.exe")
 
 SUMO_CONFIG = os.path.join(
     PROJECT_ROOT, "sumo-rl", "sumo_rl", "nets", "RESCO",
@@ -79,7 +79,7 @@ agents = []
 for i in range(16):
 
     agent = MAPPO(
-        state_size=32,
+        state_size=36,
         action_size=4
     )
 
@@ -129,9 +129,9 @@ for step in range(100):
 
     for i in range(16):
 
-        node_state = gnn_output[i]
+        node_state = torch.cat([gnn_output[i], torch.zeros(4)])
 
-        global_state = gnn_output.flatten()
+        global_state = torch.cat([gnn_output, torch.zeros((16, 4))], dim=1).flatten()
         action, log_probability, value = agents[i].select_action(
             node_state,
             global_state

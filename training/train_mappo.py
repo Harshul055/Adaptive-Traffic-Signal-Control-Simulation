@@ -87,7 +87,7 @@ SUMO_HOME = os.environ.get(
 SUMO_BINARY = os.path.join(
     SUMO_HOME,
     "bin",
-    "sumo-gui.exe"
+    "sumo-gui.exe" if os.environ.get("SUMO_GUI") == "1" else "sumo.exe"
 )
 
 SUMO_CONFIG = os.path.join(
@@ -122,7 +122,7 @@ RESULT_FILE = os.path.join(
 # TRAINING SETTINGS
 # ==================================================
 
-NUM_EPISODES = 2
+NUM_EPISODES = 10
 MAX_STEPS = 500
 
 NUM_AGENTS = 16
@@ -132,6 +132,8 @@ ACTION_SIZE = 4
 GLOBAL_STATE_SIZE = NUM_AGENTS * STATE_SIZE
 
 MIN_PHASE_DURATION = 10
+SUMO_DELAY_MS = 0
+SUMO_SEED = 42
 
 
 # ==================================================
@@ -404,8 +406,9 @@ def train():
 
             traci.start([
                 SUMO_BINARY,
-                "-c",
-                SUMO_CONFIG
+                "-c", SUMO_CONFIG,
+                "--delay", str(SUMO_DELAY_MS),
+                "--seed", str(SUMO_SEED),
             ])
 
             print(

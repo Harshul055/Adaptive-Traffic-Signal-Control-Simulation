@@ -25,8 +25,10 @@ from src.emergency.priority import give_emergency_priority, give_vip_priority
 MAX_STEPS = 1000
 NUM_AGENTS = 16
 ACTION_SIZE = 4
-STATE_SIZE = 32
+STATE_SIZE = 36
 MIN_PHASE_DURATION = 10
+SUMO_DELAY_MS = 0
+SUMO_SEED = 42
 
 SUMO_HOME = Path(
     os.environ.get(
@@ -35,7 +37,7 @@ SUMO_HOME = Path(
     )
 )
 
-SUMO_BINARY = SUMO_HOME / "bin" / "sumo-gui.exe"
+SUMO_BINARY = SUMO_HOME / "bin" / ("sumo-gui.exe" if os.environ.get("SUMO_GUI") == "1" else "sumo.exe")
 
 if not SUMO_BINARY.exists():
     SUMO_BINARY = SUMO_HOME / "bin" / "sumo.exe"
@@ -382,7 +384,9 @@ def run_fixed_time():
         [
             str(SUMO_BINARY),
             "-c",
-            str(SUMO_CONFIG)
+            str(SUMO_CONFIG),
+            "--delay", str(SUMO_DELAY_MS),
+            "--seed", str(SUMO_SEED)
         ]
     )
 
@@ -448,11 +452,9 @@ def apply_priority(
 
     # Emergency always has priority.
     for vehicle_id in emergency_ids:
-        result = give_emergency_priority(
-            vehicle_id
-        )
+        result = give_emergency_priority(vehicle_id)
 
-        if result is not None:
+        if result is not None and result.get("priority_granted", False):
             if vehicle_id not in granted_times:
                 granted_times[vehicle_id] = current_time
 
@@ -478,13 +480,11 @@ def run_gnn_mappo():
 
     gnn, adjacency, actors, tls_ids, predictor = load_models()
 
-    traci.start(
-        [
-            str(SUMO_BINARY),
-            "-c",
-            str(SUMO_CONFIG)
-        ]
-    )
+    traci.start([
+        str(SUMO_BINARY), "-c", str(SUMO_CONFIG),
+        "--delay", str(SUMO_DELAY_MS),
+        "--seed", str(SUMO_SEED),
+    ])
 
     rows = []
     completed_ids = set()
