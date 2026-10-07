@@ -16,6 +16,7 @@ from src.graph.graph_dataset import create_node_features
 from src.graph.gnn import TrafficGNN
 from src.agents.actor import Actor
 from src.environment.state import get_traffic_state, get_all_local_states
+from src.prediction.traffic_predictor import OnlineTrafficPredictor
 from src.environment.action import apply_action
 from src.emergency.detector import get_emergency_vehicles, get_vip_vehicles
 from src.emergency.priority import give_emergency_priority, give_vip_priority
@@ -218,6 +219,23 @@ def load_models():
 
     gnn.eval()
 
+    lstm_model = (
+        PROJECT_ROOT
+        / "models"
+        / "lstm"
+        / "traffic_lstm.pth"
+    )
+
+    if not lstm_model.exists():
+        raise FileNotFoundError(
+            f"LSTM model not found: {lstm_model}"
+        )
+
+    predictor = OnlineTrafficPredictor(
+        lstm_model,
+        sequence_length=10
+    )
+
     actors = []
 
     for index in range(1, NUM_AGENTS + 1):
@@ -243,7 +261,7 @@ def load_models():
         else TLS_FALLBACK
     )
 
-    return gnn, adjacency, actors, tls_ids
+    return gnn, adjacency, actors, tls_ids, predictor
 
 
 def collect_step_metrics(step_length):
@@ -458,7 +476,7 @@ def run_gnn_mappo():
     print("MATCHED GNN + MAPPO + EMERGENCY/VIP EVALUATION")
     print("=" * 70)
 
-    gnn, adjacency, actors, tls_ids = load_models()
+    gnn, adjacency, actors, tls_ids, predictor = load_models()
 
     traci.start(
         [
@@ -498,11 +516,26 @@ def run_gnn_mappo():
                     adjacency
                 )
 
+                lstm_prediction = predictor.predict_normalized(
+                    get_traffic_state()
+                )
+
+                lstm_features = (
+                    lstm_prediction
+                    .unsqueeze(0)
+                    .repeat(NUM_AGENTS, 1)
+                )
+
+                policy_state = torch.cat(
+                    [gnn_output, lstm_features],
+                    dim=1
+                )
+
                 actions = []
 
                 for index in range(NUM_AGENTS):
                     probabilities = actors[index](
-                        gnn_output[index].unsqueeze(0)
+                        policy_state[index].unsqueeze(0)
                     )
 
                     action = torch.argmax(
