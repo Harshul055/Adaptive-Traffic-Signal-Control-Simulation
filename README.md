@@ -1,6 +1,6 @@
 # 🚦 Adaptive Traffic Signal Control Simulation
 
-An AI-based Adaptive Traffic Signal Control System using **SUMO, TraCI, LSTM, GNN, and MAPPO**, with dedicated **Emergency Vehicle and VIP Priority Management**.
+An AI-based Adaptive Traffic Signal Control System using **SUMO, TraCI, LSTM, GNN, and MAPPO**, with dedicated **Emergency Vehicle and VIP Priority Management**. The LSTM provides temporal traffic prediction as a separate module; the matched paper evaluator currently measures **GNN + MAPPO + Emergency/VIP**.
 
 The system simulates a **4×4 traffic network containing 16 signalized intersections** and evaluates adaptive AI-based traffic-signal control against a fixed-time baseline.
 
@@ -1388,7 +1388,7 @@ Performance Evaluation
 Final Results
 ```
 
-The project demonstrates how temporal prediction, spatial traffic relationships, and multi-agent reinforcement learning can be combined for adaptive traffic-signal control.
+The project contains temporal prediction (LSTM), spatial traffic representation (GNN), and multi-agent reinforcement learning (MAPPO). The current matched paper evaluation uses the trained GNN + MAPPO controller with Emergency/VIP priority; the LSTM is not yet fused into the MAPPO policy input, so a GNN+LSTM+MAPPO performance claim requires a separate integration and retraining run.
 
 
 ---
