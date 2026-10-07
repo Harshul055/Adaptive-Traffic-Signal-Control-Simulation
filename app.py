@@ -679,13 +679,13 @@ def main():
 ---------------------------------------------------------------
  COMPLETE PIPELINES
 ---------------------------------------------------------------
- 12. Complete final-result pipeline
- 13. Full training + evaluation pipeline
+ 13. Complete final-result pipeline
+ 14. Full training + evaluation pipeline
 
 ---------------------------------------------------------------
  INFORMATION
 ---------------------------------------------------------------
- 14. Show output locations
+ 15. Show output locations
 
 ---------------------------------------------------------------
   0. Exit
