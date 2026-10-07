@@ -387,6 +387,8 @@ def train():
                 "SUMO-GUI connected successfully."
             )
 
+            # Establish the initial observation before the first action.
+            traci.simulationStep()
 
             # ==================================================
             # ROLLOUT STORAGE
