@@ -1,0 +1,10 @@
+Controller,Delay (s),Queue (vehicles),Average Speed (m/s),Vehicle Count,CO2 (g),Throughput (veh/h),Emergency/VIP Priority Response (%)
+Fixed-Time,1134.35,14.70,7.83,45.56,98604.91,723.60,No priority
+GNN + MAPPO + Emergency/VIP,770.37,10.03,8.98,40.23,89146.27,734.40,80.00%
+
+Improvement (%),32.09,31.74,14.70,11.69,9.59,1.49,
+
+Completed vehicles,201,204
+Special vehicles detected,N/A,10
+Priority grants,N/A,8
+Average priority response time (s),N/A,10.75
