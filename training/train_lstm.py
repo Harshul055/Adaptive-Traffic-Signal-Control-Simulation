@@ -1,53 +1,18 @@
 import os
 import sys
 
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from sklearn.preprocessing import MinMaxScaler
 
-
-# ==================================================
-# PROJECT ROOT
-# ==================================================
-
-PROJECT_ROOT = os.path.dirname(
-    os.path.dirname(
-        os.path.abspath(__file__)
-    )
-)
-
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from src.prediction.lstm import TrafficLSTM
 
-# ==================================================
-# PATHS
-# ==================================================
-
-DATA_FILE = os.path.join(
-    PROJECT_ROOT,
-    "evaluation",
-    "results",
-    "traffic_data.csv"
-)
-
-MODEL_DIR = os.path.join(
-    PROJECT_ROOT,
-    "models",
-    "lstm"
-)
-
-MODEL_FILE = os.path.join(
-    MODEL_DIR,
-    "traffic_lstm.pth"
-)
-
-
-# ==================================================
-# SETTINGS
-# ==================================================
 
 SEQUENCE_LENGTH = 10
 BATCH_SIZE = 32
@@ -58,225 +23,106 @@ FEATURES = [
     "vehicle_count",
     "waiting_time",
     "average_speed",
-    "queue_length"
+    "queue_length",
 ]
 
+DATA_FILE = os.path.join(
+    PROJECT_ROOT, "evaluation", "results", "traffic_data.csv"
+)
+MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "lstm")
+MODEL_FILE = os.path.join(MODEL_DIR, "traffic_lstm.pth")
 
-# ==================================================
-# LSTM MODEL
-# ==================================================
 
-class TrafficLSTM(nn.Module):
+def train():
+    print("\n" + "=" * 50)
+    print("LSTM TRAINING")
+    print("=" * 50)
 
-    def __init__(
-        self,
-        input_size=4,
+    if not os.path.exists(DATA_FILE):
+        raise FileNotFoundError(f"Traffic data not found: {DATA_FILE}")
+
+    data = pd.read_csv(DATA_FILE)
+    missing = [column for column in FEATURES if column not in data.columns]
+    if missing:
+        raise ValueError(f"Missing LSTM features: {missing}")
+
+    data[FEATURES] = data[FEATURES].apply(pd.to_numeric, errors="coerce")
+    data[FEATURES] = data[FEATURES].replace([np.inf, -np.inf], np.nan)
+    data = data.dropna(subset=FEATURES).reset_index(drop=True)
+
+    if len(data) <= SEQUENCE_LENGTH:
+        raise ValueError(
+            f"Need more than {SEQUENCE_LENGTH} valid rows; found {len(data)}."
+        )
+
+    values = data[FEATURES].to_numpy(dtype=np.float32)
+    feature_min = values.min(axis=0)
+    feature_max = values.max(axis=0)
+    feature_range = feature_max - feature_min
+    feature_range[feature_range == 0] = 1.0
+
+    scaled = (values - feature_min) / feature_range
+
+    X = []
+    y = []
+    for index in range(len(scaled) - SEQUENCE_LENGTH):
+        X.append(scaled[index:index + SEQUENCE_LENGTH])
+        y.append(scaled[index + SEQUENCE_LENGTH])
+
+    X_tensor = torch.tensor(np.asarray(X), dtype=torch.float32)
+    y_tensor = torch.tensor(np.asarray(y), dtype=torch.float32)
+
+    loader = DataLoader(
+        TensorDataset(X_tensor, y_tensor),
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+    )
+
+    model = TrafficLSTM(
+        input_size=len(FEATURES),
         hidden_size=64,
-        output_size=4
-    ):
-
-        super().__init__()
-
-        self.lstm = nn.LSTM(
-            input_size,
-            hidden_size,
-            batch_first=True
-        )
-
-        self.fc = nn.Linear(
-            hidden_size,
-            output_size
-        )
-
-    def forward(self, x):
-
-        output, _ = self.lstm(x)
-
-        last_output = output[:, -1, :]
-
-        return self.fc(last_output)
-
-
-# ==================================================
-# LOAD DATA
-# ==================================================
-
-print()
-print("=" * 50)
-print("LSTM TRAINING")
-print("=" * 50)
-
-print()
-print("Loading data...")
-
-data = pd.read_csv(DATA_FILE)
-
-print(
-    f"Records loaded: {len(data)}"
-)
-
-
-# ==================================================
-# SELECT FEATURES
-# ==================================================
-
-data = data[FEATURES]
-
-data = data.replace(
-    [float("inf"), float("-inf")],
-    float("nan")
-)
-
-data = data.dropna()
-
-print(
-    f"Valid records: {len(data)}"
-)
-
-
-# ==================================================
-# NORMALIZE DATA
-# ==================================================
-
-scaler = MinMaxScaler()
-
-scaled_data = scaler.fit_transform(data)
-
-
-# ==================================================
-# CREATE SEQUENCES
-# ==================================================
-
-X = []
-y = []
-
-for i in range(
-    len(scaled_data) - SEQUENCE_LENGTH
-):
-
-    X.append(
-        scaled_data[
-            i:i + SEQUENCE_LENGTH
-        ]
+        num_layers=1,
+        output_size=len(FEATURES),
     )
 
-    y.append(
-        scaled_data[
-            i + SEQUENCE_LENGTH
-        ]
-    )
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
+    print(f"Valid records: {len(data)}")
+    print(f"Input shape: {tuple(X_tensor.shape)}")
+    print(f"Target shape: {tuple(y_tensor.shape)}")
 
-X = torch.tensor(
-    X,
-    dtype=torch.float32
-)
+    for epoch in range(EPOCHS):
+        model.train()
+        total_loss = 0.0
 
-y = torch.tensor(
-    y,
-    dtype=torch.float32
-)
+        for batch_x, batch_y in loader:
+            optimizer.zero_grad()
+            prediction = model(batch_x)
+            loss = criterion(prediction, batch_y)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
 
-print(
-    f"Input shape: {X.shape}"
-)
-
-print(
-    f"Target shape: {y.shape}"
-)
-
-
-# ==================================================
-# DATASET
-# ==================================================
-
-dataset = TensorDataset(
-    X,
-    y
-)
-
-loader = DataLoader(
-    dataset,
-    batch_size=BATCH_SIZE,
-    shuffle=True
-)
-
-
-# ==================================================
-# MODEL
-# ==================================================
-
-model = TrafficLSTM()
-
-criterion = nn.MSELoss()
-
-optimizer = torch.optim.Adam(
-    model.parameters(),
-    lr=LEARNING_RATE
-)
-
-
-# ==================================================
-# TRAINING
-# ==================================================
-
-print()
-print("Starting training...")
-
-for epoch in range(EPOCHS):
-
-    total_loss = 0.0
-
-    for batch_x, batch_y in loader:
-
-        optimizer.zero_grad()
-
-        predictions = model(
-            batch_x
+        average_loss = total_loss / max(len(loader), 1)
+        print(
+            f"Epoch {epoch + 1:02d}/{EPOCHS} "
+            f"- Loss: {average_loss:.6f}"
         )
 
-        loss = criterion(
-            predictions,
-            batch_y
-        )
+    os.makedirs(MODEL_DIR, exist_ok=True)
 
-        loss.backward()
+    checkpoint = {
+        "model_state_dict": model.state_dict(),
+        "feature_min": feature_min.tolist(),
+        "feature_max": feature_max.tolist(),
+        "sequence_length": SEQUENCE_LENGTH,
+        "features": FEATURES,
+    }
+    torch.save(checkpoint, MODEL_FILE)
 
-        optimizer.step()
-
-        total_loss += loss.item()
-
-    average_loss = (
-        total_loss
-        / len(loader)
-    )
-
-    print(
-        f"Epoch {epoch + 1:02d}/{EPOCHS} "
-        f"Loss: {average_loss:.6f}"
-    )
+    print(f"\nModel saved to:\n{MODEL_FILE}")
 
 
-# ==================================================
-# SAVE MODEL
-# ==================================================
-
-os.makedirs(
-    MODEL_DIR,
-    exist_ok=True
-)
-
-torch.save(
-    model.state_dict(),
-    MODEL_FILE
-)
-
-print()
-print("=" * 50)
-print("LSTM TRAINING COMPLETE")
-print("=" * 50)
-
-print()
-print(
-    f"Model saved to:\n{MODEL_FILE}"
-)
+if __name__ == "__main__":
+    train()
