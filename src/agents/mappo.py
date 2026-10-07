@@ -13,6 +13,7 @@ class MAPPO:
         state_size=32,
         action_size=4,
         hidden_size=64,
+        global_state_size=512,
         learning_rate=0.0003,
         gamma=0.99,
         clip_epsilon=0.2,
@@ -26,6 +27,7 @@ class MAPPO:
         self.ppo_epochs = ppo_epochs
         self.gae_lambda = gae_lambda
         self.entropy_coefficient = entropy_coefficient
+        self.global_state_size = global_state_size
 
         # ==================================================
         # ACTOR
@@ -47,7 +49,7 @@ class MAPPO:
         # 16 intersections × 32 GNN features = 512
 
         self.critic = Critic(
-            input_size=512,
+            input_size=global_state_size,
             hidden_size=hidden_size
         )
 
