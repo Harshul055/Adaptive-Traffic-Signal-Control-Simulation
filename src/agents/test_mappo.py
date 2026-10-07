@@ -63,13 +63,17 @@ print(
 # MAPPO test
 # --------------------------------------
 
+# Centralized critic expects 16 × 32 = 512 values.
+global_state = torch.randn(512)
+
 agent = MAPPO(
     state_size=32,
     action_size=4
 )
 
 action, log_prob, value = agent.select_action(
-    state
+    state,
+    global_state
 )
 
 print("\nMAPPO action:", action)
