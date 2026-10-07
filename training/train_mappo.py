@@ -38,7 +38,12 @@ from src.graph.gnn import TrafficGNN
 from src.agents.mappo import MAPPO
 
 from src.environment.state import (
-    get_all_local_states
+    get_all_local_states,
+    get_traffic_state
+)
+
+from src.prediction.traffic_predictor import (
+    OnlineTrafficPredictor
 )
 
 from src.environment.reward import (
@@ -122,8 +127,9 @@ MAX_STEPS = 500
 
 NUM_AGENTS = 16
 
-STATE_SIZE = 32
+STATE_SIZE = 36
 ACTION_SIZE = 4
+GLOBAL_STATE_SIZE = NUM_AGENTS * STATE_SIZE
 
 MIN_PHASE_DURATION = 10
 
@@ -282,9 +288,25 @@ def train():
     )
 
     print(
-        "GNN output features: 32"
+        "GNN output features: 32 + 4 LSTM prediction features"
     )
 
+    LSTM_MODEL_PATH = os.path.join(
+        PROJECT_ROOT,
+        "models",
+        "lstm",
+        "traffic_lstm.pth"
+    )
+
+    if not os.path.exists(LSTM_MODEL_PATH):
+        raise FileNotFoundError(
+            "LSTM model not found. Train LSTM before MAPPO."
+        )
+
+    predictor = OnlineTrafficPredictor(
+        LSTM_MODEL_PATH,
+        sequence_length=10
+    )
 
     # ==================================================
     # 3. CREATE 16 MAPPO AGENTS
@@ -297,6 +319,7 @@ def train():
         agent = MAPPO(
             state_size=STATE_SIZE,
             action_size=ACTION_SIZE,
+            global_state_size=GLOBAL_STATE_SIZE,
             hidden_size=64,
             learning_rate=0.0003,
             gamma=0.99,
@@ -524,12 +547,27 @@ def train():
 
 
                 # ==================================================
-                # 6. CREATE GLOBAL STATE
+                # 6. ADD LSTM PREDICTION TO LOCAL POLICY STATE
                 # ==================================================
 
-                global_state = (
-                    gnn_output.flatten()
+                current_global_state = get_traffic_state()
+
+                lstm_prediction = predictor.predict_normalized(
+                    current_global_state
                 )
+
+                lstm_features = (
+                    lstm_prediction
+                    .unsqueeze(0)
+                    .repeat(NUM_AGENTS, 1)
+                )
+
+                policy_state = torch.cat(
+                    [gnn_output, lstm_features],
+                    dim=1
+                )
+
+                global_state = policy_state.flatten()
 
 
                 # ==================================================
@@ -552,7 +590,7 @@ def train():
                     # ------------------------------------------
 
                     agent_state = (
-                        gnn_output[
+                        policy_state[
                             agent_index
                         ]
                     )
@@ -739,9 +777,24 @@ def train():
                 # 15. CREATE NEXT GLOBAL STATE
                 # ==================================================
 
-                next_global_state = (
-                    next_gnn_output.flatten()
+                next_global_traffic_state = get_traffic_state()
+
+                next_lstm_prediction = predictor.predict_normalized(
+                    next_global_traffic_state
                 )
+
+                next_lstm_features = (
+                    next_lstm_prediction
+                    .unsqueeze(0)
+                    .repeat(NUM_AGENTS, 1)
+                )
+
+                next_policy_state = torch.cat(
+                    [next_gnn_output, next_lstm_features],
+                    dim=1
+                )
+
+                next_global_state = next_policy_state.flatten()
 
 
                 # ==================================================
@@ -771,7 +824,7 @@ def train():
                     agent_states[
                         agent_index
                     ].append(
-                        gnn_output[
+                        policy_state[
                             agent_index
                         ].detach()
                     )
