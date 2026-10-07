@@ -166,9 +166,11 @@ try:
 
             node_state = gnn_output[i]
 
+            global_state = gnn_output.flatten()
             action, log_probability, value = (
                 agents[i].select_action(
-                    node_state
+                    node_state,
+                    global_state
                 )
             )
 
