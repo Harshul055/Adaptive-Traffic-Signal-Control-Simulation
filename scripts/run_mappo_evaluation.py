@@ -50,9 +50,15 @@ from src.environment.action import (
 # SUMO
 # ==================================================
 
-SUMO_BINARY = (
+SUMO_HOME = os.environ.get(
+    "SUMO_HOME",
     r"C:\Program Files (x86)\Eclipse\Sumo"
-    r"\bin\sumo-gui.exe"
+)
+
+SUMO_BINARY = os.path.join(
+    SUMO_HOME,
+    "bin",
+    "sumo-gui.exe"
 )
 
 SUMO_CONFIG = os.path.join(
