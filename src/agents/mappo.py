@@ -10,10 +10,10 @@ class MAPPO:
 
     def __init__(
         self,
-        state_size=32,
+        state_size=36,
         action_size=4,
         hidden_size=64,
-        global_state_size=512,
+        global_state_size=576,
         learning_rate=0.0003,
         gamma=0.99,
         clip_epsilon=0.2,
@@ -34,7 +34,7 @@ class MAPPO:
         # ==================================================
 
         # Actor receives local state:
-        # 32 GNN features for one intersection
+        # 32 GNN + 4 LSTM features for one intersection
 
         self.actor = Actor(
             input_size=state_size,
@@ -46,7 +46,7 @@ class MAPPO:
         # CENTRALIZED CRITIC
         # ==================================================
 
-        # 16 intersections × 32 GNN features = 512
+        # 16 intersections × 36 local policy features = 576
 
         self.critic = Critic(
             input_size=global_state_size,
