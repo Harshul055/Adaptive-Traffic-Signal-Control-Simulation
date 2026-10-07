@@ -272,6 +272,47 @@ def generate_plots():
     pause()
 
 
+
+def run_paper_evaluation():
+
+    header("PAPER METRICS EVALUATION")
+
+    print("""
+This is the matched research-paper evaluation.
+
+It runs:
+1. Fixed-Time
+2. GNN + MAPPO + Emergency/VIP
+
+using the same SUMO scenario and one simulation step
+per evaluation loop.
+
+It collects:
+- Delay
+- Queue length
+- Average speed
+- Vehicle count
+- CO2 (g)
+- Throughput (veh/h)
+- Emergency/VIP priority response
+""")
+
+    run_file(
+        Path("scripts") /
+        "run_paper_evaluation.py"
+    )
+
+    print("\nPaper results:")
+    print(
+        PROJECT_ROOT /
+        "evaluation" /
+        "tables" /
+        "paper_results.csv"
+    )
+
+    pause()
+
+
 # ============================================================
 # COMPLETE FINAL RESULT PIPELINE
 # ============================================================
@@ -633,6 +674,7 @@ def main():
   9. Run final evaluation
  10. Process final results
  11. Generate final plots
+ 12. Run matched paper-metrics evaluation
 
 ---------------------------------------------------------------
  COMPLETE PIPELINES
@@ -688,12 +730,15 @@ def main():
             generate_plots()
 
         elif choice == "12":
-            final_result_pipeline()
+            run_paper_evaluation()
 
         elif choice == "13":
-            full_training_pipeline()
+            final_result_pipeline()
 
         elif choice == "14":
+            full_training_pipeline()
+
+        elif choice == "15":
             show_outputs()
 
         elif choice == "0":
