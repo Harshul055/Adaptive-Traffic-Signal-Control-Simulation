@@ -12,11 +12,11 @@ PROJECT_ROOT = os.path.dirname(
 
 sys.path.insert(0, PROJECT_ROOT)
 
-from src.graph.graph_builder import build_graph
-from src.graph.graph_dataset import (
-    create_adjacency_matrix,
-    create_node_features
+from src.graph.graph_builder import (
+    build_graph,
+    create_adjacency_matrix
 )
+from src.graph.graph_dataset import create_node_features
 from src.graph.gnn import TrafficGNN
 
 
@@ -36,12 +36,20 @@ print("\nNumber of intersections:", len(nodes))
 
 
 # 2. Create traffic features
-features = create_node_features(
-    vehicle_count=30,
-    waiting_time=100,
-    average_speed=8,
-    queue_length=10,
-    number_of_nodes=len(nodes)
+test_states = {}
+
+for node in nodes:
+    test_states[node] = {
+        "vehicle_count": 30,
+        "queue_length": 10,
+        "waiting_time": 100,
+        "average_speed": 8,
+        "current_phase": 0,
+        "phase_duration": 30
+    }
+
+_, features = create_node_features(
+    test_states
 )
 
 
@@ -63,7 +71,7 @@ print("Adjacency shape:", adjacency.shape)
 
 # 4. Create GNN
 model = TrafficGNN(
-    input_features=4,
+    input_features=6,
     hidden_features=64,
     output_features=32
 )
