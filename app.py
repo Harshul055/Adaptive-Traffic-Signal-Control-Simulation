@@ -324,14 +324,11 @@ def final_result_pipeline():
     print("""
 This uses the existing trained models.
 
-Pipeline:
+Matched-paper pipeline:
 
 1. Generate Emergency/VIP scenario
 2. Merge traffic scenario
-3. Run MAPPO evaluation
-4. Run final evaluation
-5. Process final results
-6. Generate final plots
+3. Run the matched SUMO paper evaluation
 """)
 
     confirm = input(
@@ -358,29 +355,9 @@ Pipeline:
         ),
 
         (
-            "Run MAPPO Evaluation",
+            "Run Matched Paper Evaluation",
             Path("scripts") /
-            "run_mappo_evaluation.py"
-        ),
-
-        (
-            "Run Final Evaluation",
-            Path("scripts") /
-            "evaluate.py"
-        ),
-
-        (
-            "Process Final Results",
-            Path("src") /
-            "evaluation" /
-            "final_results.py"
-        ),
-
-        (
-            "Generate Final Plots",
-            Path("src") /
-            "evaluation" /
-            "plot_results.py"
+            "run_paper_evaluation.py"
         )
     ]
 
@@ -455,10 +432,7 @@ This pipeline performs:
 4. Train MAPPO
 5. Generate Emergency/VIP scenario
 6. Merge traffic scenario
-7. Run MAPPO evaluation
-8. Run final evaluation
-9. Process final results
-10. Generate final plots
+7. Run the matched SUMO paper evaluation
 
 Training can take a long time.
 """)
@@ -511,29 +485,9 @@ Training can take a long time.
         ),
 
         (
-            "Run MAPPO Evaluation",
+            "Run Matched Paper Evaluation",
             Path("scripts") /
-            "run_mappo_evaluation.py"
-        ),
-
-        (
-            "Run Final Evaluation",
-            Path("scripts") /
-            "evaluate.py"
-        ),
-
-        (
-            "Process Final Results",
-            Path("src") /
-            "evaluation" /
-            "final_results.py"
-        ),
-
-        (
-            "Generate Final Plots",
-            Path("src") /
-            "evaluation" /
-            "plot_results.py"
+            "run_paper_evaluation.py"
         )
     ]
 
