@@ -15,7 +15,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from src.environment.state import get_all_local_states
 from src.graph.graph_builder import build_graph
-from src.graph.graph_dataset import create_adjacency_matrix
+from src.graph.graph_builder import create_adjacency_matrix
 from src.graph.graph_dataset import create_node_features
 from src.graph.gnn import TrafficGNN
 from src.agents.mappo import MAPPO
@@ -31,15 +31,12 @@ print("======================================")
 # 1. Start SUMO
 # --------------------------------------
 
-SUMO_BINARY = (
-    r"C:\Program Files (x86)\Eclipse\Sumo"
-    r"\bin\sumo-gui.exe"
-)
+SUMO_HOME = os.environ.get("SUMO_HOME", r"C:\Program Files (x86)\Eclipse\Sumo")
+SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo-gui.exe")
 
-SUMO_CONFIG = (
-    r"C:\Project\Adaptive-Traffic-Control"
-    r"\sumo-rl\sumo_rl\nets\RESCO\grid4x4"
-    r"\grid4x4.sumocfg"
+SUMO_CONFIG = os.path.join(
+    PROJECT_ROOT, "sumo-rl", "sumo_rl", "nets", "RESCO",
+    "grid4x4", "grid4x4.sumocfg"
 )
 
 traci.start([
@@ -166,9 +163,11 @@ try:
 
             node_state = gnn_output[i]
 
+            global_state = gnn_output.flatten()
             action, log_probability, value = (
                 agents[i].select_action(
-                    node_state
+                    node_state,
+                    global_state
                 )
             )
 

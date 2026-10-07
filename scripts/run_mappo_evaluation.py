@@ -55,10 +55,10 @@ SUMO_BINARY = (
     r"\bin\sumo-gui.exe"
 )
 
-SUMO_CONFIG = (
-    r"C:\Project\Adaptive-Traffic-Control"
-    r"\sumo-rl\sumo_rl\nets\RESCO\grid4x4"
-    r"\grid4x4.sumocfg"
+SUMO_CONFIG = os.path.join(
+    PROJECT_ROOT,
+    "sumo-rl", "sumo_rl", "nets", "RESCO",
+    "grid4x4", "grid4x4.sumocfg"
 )
 
 
@@ -284,13 +284,8 @@ def evaluate():
         ):
 
             # --------------------------------------------------
-            # STEP SUMO
-            # --------------------------------------------------
-
-            traci.simulationStep()
-
-            # --------------------------------------------------
             # GET LOCAL STATES
+            # --------------------------------------------------
             # --------------------------------------------------
 
             local_states = (

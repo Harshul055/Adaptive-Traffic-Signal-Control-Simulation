@@ -10,8 +10,8 @@ def generate_special_vehicles(
     total_vip=5
 ):
     """
-    Generate at least 50 emergency and 50 VIP vehicles
-    for one SUMO simulation.
+    Generate the requested number of emergency and VIP vehicles.
+    All special vehicles depart strictly before simulation step 1000.
     """
 
     random.seed(simulation_number)
@@ -26,7 +26,7 @@ def generate_special_vehicles(
         vehicles.append({
             "id": f"emergency_{i}",
             "type": "emergency",
-            "depart": random.randint(5, 1000),
+            "depart": random.randint(5, 999),
             "route": SPECIAL_ROUTE
         })
 

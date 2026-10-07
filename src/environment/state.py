@@ -111,24 +111,18 @@ def get_local_traffic_state(tls_id):
                 lane_id
             )
 
-            total_speed += (
-                traci.lane.getLastStepMeanSpeed(
-                    lane_id
-                )
-            )
+            # Sum actual vehicle speeds so the average is weighted
+            # by vehicles rather than by the number of lanes.
+            for vehicle_id in vehicle_ids:
+                total_speed += traci.vehicle.getSpeed(vehicle_id)
 
         except traci.TraCIException:
             continue
 
-    if len(lane_ids) > 0:
-
-        average_speed = (
-            total_speed / len(lane_ids)
-        )
-
+    if total_vehicles > 0:
+        average_speed = total_speed / total_vehicles
     else:
-
-        average_speed = 0
+        average_speed = 0.0
 
     state = {
 

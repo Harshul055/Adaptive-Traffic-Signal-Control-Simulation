@@ -14,17 +14,22 @@ PROJECT_ROOT = os.path.dirname(
 sys.path.insert(0, PROJECT_ROOT)
 
 from src.graph.graph_builder import build_graph
-from src.graph.graph_dataset import create_adjacency_matrix
+from src.graph.graph_builder import create_adjacency_matrix
 from src.graph.gnn import TrafficGNN
+from src.graph.graph_dataset import create_node_features
 from src.agents.mappo import MAPPO
+from src.environment.state import get_all_local_states
 
 
-SUMO_HOME = r"C:\Program Files (x86)\Eclipse\Sumo"
+SUMO_HOME = os.environ.get(
+    "SUMO_HOME",
+    r"C:\Program Files (x86)\Eclipse\Sumo"
+)
 
-SUMO_CONFIG = (
-    r"C:\Project\Adaptive-Traffic-Control"
-    r"\sumo-rl\sumo_rl\nets\RESCO\grid4x4"
-    r"\grid4x4.sumocfg"
+SUMO_CONFIG = os.path.join(
+    PROJECT_ROOT,
+    "sumo-rl", "sumo_rl", "nets", "RESCO",
+    "grid4x4", "grid4x4.sumocfg"
 )
 
 SUMO_BINARY = os.path.join(
@@ -87,7 +92,7 @@ adjacency = torch.tensor(
 # --------------------------------------
 
 gnn = TrafficGNN(
-    input_features=4,
+    input_features=6,
     hidden_features=64,
     output_features=32
 )
@@ -125,66 +130,19 @@ for step in range(1000):
 
 
     # ------------------------------
-    # Collect traffic state
+    # Collect local traffic states
     # ------------------------------
 
-    features = []
+    local_states = get_all_local_states()
 
-    for tls_id in traffic_lights:
-
-        vehicle_ids = (
-            traci.vehicle.getIDList()
-        )
-
-        vehicle_count = len(vehicle_ids)
-
-        waiting_time = 0
-        total_speed = 0
-        queue = 0
-
-        for vehicle_id in vehicle_ids:
-
-            waiting_time += (
-                traci.vehicle
-                .getAccumulatedWaitingTime(
-                    vehicle_id
-                )
-            )
-
-            speed = (
-                traci.vehicle
-                .getSpeed(vehicle_id)
-            )
-
-            total_speed += speed
-
-            if speed < 0.1:
-                queue += 1
-
-        if vehicle_count > 0:
-            average_speed = (
-                total_speed / vehicle_count
-            )
-        else:
-            average_speed = 0
-
-        features.append([
-            vehicle_count,
-            waiting_time,
-            average_speed,
-            queue
-        ])
-
-
-    # ------------------------------
-    # Convert to tensor
-    # ------------------------------
+    _, features = create_node_features(
+        local_states
+    )
 
     x = torch.tensor(
         features,
         dtype=torch.float32
     )
-
 
     # ------------------------------
     # GNN
@@ -194,6 +152,9 @@ for step in range(1000):
         x,
         adjacency
     )
+
+    # Centralized MAPPO critic state
+    global_state = gnn_output.flatten()
 
 
     # ------------------------------
@@ -210,7 +171,8 @@ for step in range(1000):
 
         action, _, _ = (
             agents[i].select_action(
-                state
+                state,
+                global_state
             )
         )
 
@@ -218,45 +180,21 @@ for step in range(1000):
 
 
     # ------------------------------
-    # Apply actions to SUMO
+    # Apply actions to SUMO every step
     # ------------------------------
 
-    if step % 10 == 0:
-
-        print(
-            "\nStep:",
-            step
+    for i, tls_id in enumerate(traffic_lights):
+        phase_count = len(
+            traci.trafficlight.getAllProgramLogics(tls_id)[0].getPhases()
         )
+        if phase_count > 0:
+            phase = actions[i] % phase_count
+            traci.trafficlight.setPhase(tls_id, phase)
 
-        for i, tls_id in enumerate(
-            traffic_lights
-        ):
-
-            phase_count = len(
-                traci.trafficlight
-                .getAllProgramLogics(
-                    tls_id
-                )[0]
-                .getPhases()
-            )
-
-            if phase_count > 0:
-
-                phase = (
-                    actions[i] %
-                    phase_count
-                )
-
-                traci.trafficlight.setPhase(
-                    tls_id,
-                    phase
-                )
-
-                print(
-                    tls_id,
-                    "→ Phase:",
-                    phase
-                )
+    if step % 10 == 0:
+        print("\nStep:", step)
+        for i, tls_id in enumerate(traffic_lights):
+            print(tls_id, "→ Phase:", actions[i])
 
 
 # --------------------------------------

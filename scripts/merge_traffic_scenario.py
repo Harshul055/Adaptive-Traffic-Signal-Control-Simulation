@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 # FILES
 # --------------------------------------------------
 
-BASE_DIR = Path(r"C:\Project\Adaptive-Traffic-Control")
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 NORMAL_FILE = (
     BASE_DIR
@@ -76,6 +76,16 @@ root = tree.getroot()
 # --------------------------------------------------
 
 SPECIAL_ROUTE = "left0A0 A0A1 A1A2 A2A3 A3top0"
+
+# --------------------------------------------------
+# REMOVE ANY PRE-EXISTING SPECIAL VEHICLES
+# --------------------------------------------------
+
+for vehicle in list(root.findall("vehicle")):
+    vehicle_id = vehicle.get("id", "")
+    vehicle_type = vehicle.get("type", "")
+    if vehicle_id.startswith(("emergency_", "vip_")) or vehicle_type in ("emergency", "vip"):
+        root.remove(vehicle)
 
 # --------------------------------------------------
 # ADD SPECIAL VEHICLES
