@@ -34,13 +34,19 @@ print("\nNumber of intersections:", len(nodes))
 
 
 # 2. Create traffic features
-features = create_node_features(
-    vehicle_count=30,
-    waiting_time=100,
-    average_speed=8,
-    queue_length=10,
-    number_of_nodes=len(nodes)
-)
+local_states = {
+    node: {
+        "vehicle_count": 30,
+        "queue_length": 10,
+        "waiting_time": 100,
+        "average_speed": 8,
+        "current_phase": 0,
+        "phase_duration": 30,
+    }
+    for node in nodes
+}
+
+_, features = create_node_features(local_states)
 
 
 # 3. Convert to tensors
@@ -61,7 +67,7 @@ print("Adjacency shape:", adjacency.shape)
 
 # 4. Create GNN
 model = TrafficGNN(
-    input_features=4,
+    input_features=6,
     hidden_features=64,
     output_features=32
 )
