@@ -14,7 +14,7 @@ PROJECT_ROOT = os.path.dirname(
 sys.path.insert(0, PROJECT_ROOT)
 
 from src.graph.graph_builder import build_graph
-from src.graph.graph_dataset import create_adjacency_matrix
+from src.graph.graph_builder import create_adjacency_matrix
 from src.graph.gnn import TrafficGNN
 from src.agents.mappo import MAPPO
 
