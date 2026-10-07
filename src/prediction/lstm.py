@@ -8,7 +8,7 @@ class TrafficLSTM(nn.Module):
         self,
         input_size=4,
         hidden_size=64,
-        num_layers=2,
+        num_layers=1,
         output_size=4
     ):
 
