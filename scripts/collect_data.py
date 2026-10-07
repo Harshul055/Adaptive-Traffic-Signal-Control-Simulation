@@ -22,7 +22,8 @@ if PROJECT_ROOT not in sys.path:
 # SUMO CONFIGURATION
 # ==================================================
 
-SUMO_BINARY = "sumo"
+SUMO_HOME = os.environ.get("SUMO_HOME")
+SUMO_BINARY = os.path.join(SUMO_HOME, "bin", "sumo.exe") if SUMO_HOME else "sumo"
 
 SUMO_CONFIG = os.path.join(
     PROJECT_ROOT,
