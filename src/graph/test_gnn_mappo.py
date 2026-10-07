@@ -15,7 +15,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from src.environment.state import get_all_local_states
 from src.graph.graph_builder import build_graph
-from src.graph.graph_dataset import create_adjacency_matrix
+from src.graph.graph_builder import create_adjacency_matrix
 from src.graph.graph_dataset import create_node_features
 from src.graph.gnn import TrafficGNN
 from src.agents.mappo import MAPPO
@@ -124,6 +124,10 @@ for step in range(100):
         adjacency
     )
 
+    # Centralized MAPPO critic:
+    # 16 intersections × 32 GNN features = 512
+    global_state = gnn_output.flatten()
+
     # -------------------------
     # MAPPO
     # -------------------------
@@ -135,7 +139,8 @@ for step in range(100):
         node_state = gnn_output[i]
 
         action, log_probability, value = agents[i].select_action(
-            node_state
+            node_state,
+            global_state
         )
 
         actions.append(action)
