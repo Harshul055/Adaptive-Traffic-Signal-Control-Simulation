@@ -14,7 +14,7 @@ PROJECT_ROOT = os.path.dirname(
 sys.path.insert(0, PROJECT_ROOT)
 
 from src.graph.graph_builder import build_graph
-from src.graph.graph_dataset import create_adjacency_matrix
+from src.graph.graph_builder import create_adjacency_matrix
 from src.graph.gnn import TrafficGNN
 from src.agents.mappo import MAPPO
 
@@ -195,6 +195,10 @@ for step in range(1000):
         adjacency
     )
 
+    # Centralized critic input:
+    # 16 intersections × 32 GNN features = 512
+    global_state = gnn_output.flatten()
+
 
     # ------------------------------
     # MAPPO actions
@@ -210,7 +214,8 @@ for step in range(1000):
 
         action, _, _ = (
             agents[i].select_action(
-                state
+                state,
+                global_state
             )
         )
 
