@@ -178,9 +178,13 @@ def change_phase(tls_id):
         return False
 
     current_phase = traci.trafficlight.getPhase(tls_id)
-    phase_count = len(
-        traci.trafficlight.getAllProgramLogics(tls_id)[0].phases
-    )
+    logics = traci.trafficlight.getAllProgramLogics(tls_id)
+    if not logics:
+        return False
+
+    phase_count = len(logics[0].getPhases())
+    if phase_count == 0:
+        return False
 
     next_phase = (current_phase + 1) % phase_count
 
