@@ -382,6 +382,8 @@ def train():
             NUM_EPISODES
         ):
 
+            predictor.reset()
+
             print(
                 f"Episode {episode + 1}/{NUM_EPISODES}"
             )
