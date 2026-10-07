@@ -1,5 +1,5 @@
-sumo_home: "C:/Program Files (x86)/Eclipse/Sumo"
-
-sumocfg: "C:/Project/Adaptive-Traffic-Control/sumo-rl/sumo_rl/nets/RESCO/grid4x4/grid4x4.sumocfg"
-
+# SUMO installation is resolved from the SUMO_HOME environment variable
+# by the Python runners. This config keeps the project path portable.
+sumo_home: null
+sumocfg: "sumo-rl/sumo_rl/nets/RESCO/grid4x4/grid4x4.sumocfg"
 gui: true
