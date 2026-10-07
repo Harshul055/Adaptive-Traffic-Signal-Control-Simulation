@@ -20,6 +20,7 @@ from src.prediction.traffic_predictor import OnlineTrafficPredictor
 from src.environment.action import apply_action
 from src.emergency.detector import get_emergency_vehicles, get_vip_vehicles
 from src.emergency.priority import give_emergency_priority, give_vip_priority
+from src.emergency.scenario import prepare_matched_scenario
 
 
 MAX_STEPS = 1000
@@ -111,90 +112,6 @@ def check_files():
         actor = MAPPO_DIR / f"actor_{index:02d}.pth"
         if not actor.exists():
             raise FileNotFoundError(f"MAPPO actor not found: {actor}")
-
-
-def prepare_matched_scenario():
-    print("\nPreparing matched Emergency/VIP scenario...")
-
-    normal_file = GRID_DIR / "grid4x4_1.rou.xml"
-    output_file = GRID_DIR / "test_scenario.rou.xml"
-
-    import random
-    import xml.etree.ElementTree as ET
-
-    random.seed(42)
-
-    tree = ET.parse(normal_file)
-    root = tree.getroot()
-
-    # Remove an older generated special scenario if it exists.
-    for vehicle in list(root.findall("vehicle")):
-        vehicle_id = vehicle.get("id", "")
-        if vehicle_id.startswith("emergency_") or vehicle_id.startswith("vip_"):
-            root.remove(vehicle)
-
-    special = []
-
-    for i in range(1, 6):
-        special.append(
-            {
-                "id": f"emergency_{i}",
-                "type": "emergency",
-                "depart": random.randint(100, 900)
-            }
-        )
-
-    for i in range(1, 6):
-        special.append(
-            {
-                "id": f"vip_{i}",
-                "type": "vip",
-                "depart": random.randint(100, 900)
-            }
-        )
-
-    route = "left0A0 A0A1 A1A2 A2A3 A3top0"
-
-    for vehicle in special:
-        element = ET.Element(
-            "vehicle",
-            {
-                "id": vehicle["id"],
-                "type": vehicle["type"],
-                "depart": str(vehicle["depart"])
-            }
-        )
-
-        ET.SubElement(
-            element,
-            "route",
-            {"edges": route}
-        )
-
-        root.append(element)
-
-    vehicles = root.findall("vehicle")
-    vehicles.sort(
-        key=lambda item: float(item.get("depart", "0"))
-    )
-
-    for vehicle in list(root.findall("vehicle")):
-        root.remove(vehicle)
-
-    for vehicle in vehicles:
-        root.append(vehicle)
-
-    tree.write(
-        output_file,
-        encoding="UTF-8",
-        xml_declaration=True
-    )
-
-    print("Matched scenario created:")
-    print(output_file)
-    print("Emergency vehicles: 5")
-    print("VIP vehicles      : 5")
-    print("All special departures are before step 1000.")
 
 
 def load_models():
@@ -310,7 +227,7 @@ def write_raw_csv(path, rows):
         writer.writerows(rows)
 
 
-def summarize(rows, step_length, detected=0, granted=0, response_times=None):
+def summarize(rows, step_length, detected=0, granted=0, interventions=0, response_times=None):
     if not rows:
         raise RuntimeError("No evaluation rows were collected.")
 
@@ -370,6 +287,7 @@ def summarize(rows, step_length, detected=0, granted=0, response_times=None):
         "throughput_vph": throughput,
         "special_detected": detected,
         "priority_granted": granted,
+        "priority_interventions": interventions,
         "priority_response_rate": priority_rate,
         "average_priority_response_s": average_priority_response
     }
@@ -432,7 +350,8 @@ def run_fixed_time():
 def apply_priority(
     detected_times,
     granted_times,
-    current_time
+    current_time,
+    intervention_ids
 ):
     emergency_ids = set(
         get_emergency_vehicles()
@@ -454,9 +373,13 @@ def apply_priority(
     for vehicle_id in emergency_ids:
         result = give_emergency_priority(vehicle_id)
 
-        if result is not None and result.get("priority_granted", False):
-            if vehicle_id not in granted_times:
-                granted_times[vehicle_id] = current_time
+        if result is not None:
+            if result.get("changed", False):
+                intervention_ids.add(vehicle_id)
+
+            if result.get("priority_granted", False):
+                if vehicle_id not in granted_times:
+                    granted_times[vehicle_id] = current_time
 
     # VIP is considered only when no emergency vehicle is active.
     if not emergency_ids:
@@ -465,12 +388,15 @@ def apply_priority(
                 vehicle_id
             )
 
-            if (
-                result is not None
-                and result.get("priority_granted", False)
-                and vehicle_id not in granted_times
-            ):
-                granted_times[vehicle_id] = current_time
+            if result is not None:
+                if result.get("changed", False):
+                    intervention_ids.add(vehicle_id)
+
+                if (
+                    result.get("priority_granted", False)
+                    and vehicle_id not in granted_times
+                ):
+                    granted_times[vehicle_id] = current_time
 
 
 def run_gnn_mappo():
@@ -490,6 +416,7 @@ def run_gnn_mappo():
     completed_ids = set()
     detected_times = {}
     granted_times = {}
+    intervention_ids = set()
 
     step_length = float(traci.simulation.getDeltaT())
 
@@ -556,7 +483,8 @@ def run_gnn_mappo():
             apply_priority(
                 detected_times,
                 granted_times,
-                current_time
+                current_time,
+                intervention_ids
             )
 
             traci.simulationStep()
@@ -599,6 +527,7 @@ def run_gnn_mappo():
         step_length,
         detected=len(detected_times),
         granted=len(granted_times),
+        interventions=len(intervention_ids),
         response_times=response_times
     )
 
@@ -681,7 +610,7 @@ def save_final_table(fixed, adaptive):
                 "Vehicle Count",
                 "CO2 (g)",
                 "Throughput (veh/h)",
-                "Emergency/VIP Priority Response (%)"
+                "Emergency/VIP Priority Service Rate (%)"
             ]
         )
 
@@ -744,9 +673,17 @@ def save_final_table(fixed, adaptive):
 
         writer.writerow(
             [
-                "Priority grants",
+                "Priority service grants",
                 "N/A",
                 adaptive["priority_granted"]
+            ]
+        )
+
+        writer.writerow(
+            [
+                "Priority signal interventions",
+                "N/A",
+                adaptive["priority_interventions"]
             ]
         )
 
@@ -792,7 +729,10 @@ def save_final_table(fixed, adaptive):
 
 def main():
     check_files()
-    prepare_matched_scenario()
+    prepare_matched_scenario(
+        GRID_DIR,
+        seed=SUMO_SEED
+    )
 
     fixed = run_fixed_time()
     adaptive = run_gnn_mappo()
