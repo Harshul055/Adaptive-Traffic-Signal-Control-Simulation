@@ -42,12 +42,13 @@ print(
 # --------------------------------------
 
 critic = Critic(
-    input_size=32,
+    input_size=512,
     hidden_size=64
 )
 
+global_state = torch.randn(512)
 value = critic(
-    state.unsqueeze(0)
+    global_state.unsqueeze(0)
 )
 
 print("\nCritic output:")
@@ -68,8 +69,10 @@ agent = MAPPO(
     action_size=4
 )
 
+global_state = torch.randn(512)
 action, log_prob, value = agent.select_action(
-    state
+    state,
+    global_state
 )
 
 print("\nMAPPO action:", action)
