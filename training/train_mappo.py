@@ -711,6 +711,7 @@ def train():
 
                 done = (
                     step == MAX_STEPS - 1
+                    or traci.simulation.getMinExpectedNumber() <= 0
                 )
 
 
