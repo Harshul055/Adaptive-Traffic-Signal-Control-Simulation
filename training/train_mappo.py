@@ -1,7 +1,9 @@
 import os
 import sys
 import csv
+import random
 
+import numpy as np
 import torch
 import traci
 
@@ -54,13 +56,18 @@ from src.environment.action import (
     apply_action
 )
 
+from src.emergency.scenario import (
+    prepare_matched_scenario
+)
+
 
 # ==================================================
 # EMERGENCY SYSTEM
 # ==================================================
 
 from src.emergency.detector import (
-    get_emergency_vehicles
+    get_emergency_vehicles,
+    get_vip_vehicles
 )
 
 from src.emergency.route import (
@@ -71,7 +78,8 @@ from src.emergency.route import (
 from src.emergency.priority import (
     get_controlled_traffic_lights,
     select_priority_signal,
-    give_emergency_priority
+    give_emergency_priority,
+    give_vip_priority
 )
 
 
@@ -134,6 +142,21 @@ GLOBAL_STATE_SIZE = NUM_AGENTS * STATE_SIZE
 MIN_PHASE_DURATION = 10
 SUMO_DELAY_MS = 0
 SUMO_SEED = 42
+
+GRID_DIR = os.path.dirname(SUMO_CONFIG)
+
+
+# ==================================================
+# REPRODUCIBILITY
+# ==================================================
+
+def set_reproducible_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 # ==================================================
@@ -208,6 +231,15 @@ def handle_emergency_vehicles():
 # ==================================================
 
 def train():
+
+    set_reproducible_seed(SUMO_SEED)
+
+    # Use the exact same deterministic Emergency/VIP scenario
+    # that the paper evaluator uses.
+    prepare_matched_scenario(
+        GRID_DIR,
+        seed=SUMO_SEED
+    )
 
     # ==================================================
     # 1. BUILD TRAFFIC GRAPH
@@ -654,24 +686,25 @@ def train():
 
 
                 # ==================================================
-                # 9. EMERGENCY PRIORITY OVERRIDE
+                # 9. EMERGENCY / VIP PRIORITY OVERRIDE
                 # ==================================================
 
-                emergency_vehicles = (
+                emergency_vehicles = set(
                     get_emergency_vehicles()
                 )
 
+                vip_vehicles = set(
+                    get_vip_vehicles()
+                )
 
-                for vehicle_id in (
-                    emergency_vehicles
-                ):
+                # Emergency always has priority over VIP.
+                for vehicle_id in emergency_vehicles:
 
                     priority_result = (
                         give_emergency_priority(
                             vehicle_id
                         )
                     )
-
 
                     if (
                         priority_result
@@ -715,6 +748,35 @@ def train():
                         print(
                             "======================================"
                         )
+
+                # VIP priority is granted only when no emergency
+                # vehicle is active, matching the evaluation hierarchy.
+                if not emergency_vehicles:
+
+                    for vehicle_id in vip_vehicles:
+
+                        priority_result = (
+                            give_vip_priority(
+                                vehicle_id
+                            )
+                        )
+
+                        if (
+                            priority_result
+                            and
+                            priority_result.get(
+                                "changed",
+                                False
+                            )
+                        ):
+
+                            print()
+
+                            print(
+                                "VIP PRIORITY ACTIVATED: "
+                                f"{vehicle_id} -> "
+                                f"{priority_result['tls_id']}"
+                            )
 
 
                 # ==================================================
