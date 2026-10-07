@@ -87,7 +87,7 @@ adjacency = torch.tensor(
 # --------------------------------------
 
 gnn = TrafficGNN(
-    input_features=4,
+    input_features=6,
     hidden_features=64,
     output_features=32
 )
@@ -125,66 +125,19 @@ for step in range(1000):
 
 
     # ------------------------------
-    # Collect traffic state
+    # Collect local traffic states
     # ------------------------------
 
-    features = []
+    local_states = get_all_local_states()
 
-    for tls_id in traffic_lights:
-
-        vehicle_ids = (
-            traci.vehicle.getIDList()
-        )
-
-        vehicle_count = len(vehicle_ids)
-
-        waiting_time = 0
-        total_speed = 0
-        queue = 0
-
-        for vehicle_id in vehicle_ids:
-
-            waiting_time += (
-                traci.vehicle
-                .getAccumulatedWaitingTime(
-                    vehicle_id
-                )
-            )
-
-            speed = (
-                traci.vehicle
-                .getSpeed(vehicle_id)
-            )
-
-            total_speed += speed
-
-            if speed < 0.1:
-                queue += 1
-
-        if vehicle_count > 0:
-            average_speed = (
-                total_speed / vehicle_count
-            )
-        else:
-            average_speed = 0
-
-        features.append([
-            vehicle_count,
-            waiting_time,
-            average_speed,
-            queue
-        ])
-
-
-    # ------------------------------
-    # Convert to tensor
-    # ------------------------------
+    _, features = create_node_features(
+        local_states
+    )
 
     x = torch.tensor(
         features,
         dtype=torch.float32
     )
-
 
     # ------------------------------
     # GNN
@@ -194,6 +147,9 @@ for step in range(1000):
         x,
         adjacency
     )
+
+    # Centralized MAPPO critic state
+    global_state = gnn_output.flatten()
 
 
     # ------------------------------
@@ -210,7 +166,8 @@ for step in range(1000):
 
         action, _, _ = (
             agents[i].select_action(
-                state
+                state,
+                global_state
             )
         )
 
