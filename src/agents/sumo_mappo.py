@@ -20,12 +20,15 @@ from src.agents.mappo import MAPPO
 from src.environment.state import get_all_local_states
 
 
-SUMO_HOME = r"C:\Program Files (x86)\Eclipse\Sumo"
+SUMO_HOME = os.environ.get(
+    "SUMO_HOME",
+    r"C:\Program Files (x86)\Eclipse\Sumo"
+)
 
-SUMO_CONFIG = (
-    r"C:\Project\Adaptive-Traffic-Control"
-    r"\sumo-rl\sumo_rl\nets\RESCO\grid4x4"
-    r"\grid4x4.sumocfg"
+SUMO_CONFIG = os.path.join(
+    PROJECT_ROOT,
+    "sumo-rl", "sumo_rl", "nets", "RESCO",
+    "grid4x4", "grid4x4.sumocfg"
 )
 
 SUMO_BINARY = os.path.join(
@@ -176,45 +179,21 @@ for step in range(1000):
 
 
     # ------------------------------
-    # Apply actions to SUMO
+    # Apply actions to SUMO every step
     # ------------------------------
 
-    if step % 10 == 0:
-
-        print(
-            "\nStep:",
-            step
+    for i, tls_id in enumerate(traffic_lights):
+        phase_count = len(
+            traci.trafficlight.getAllProgramLogics(tls_id)[0].getPhases()
         )
+        if phase_count > 0:
+            phase = actions[i] % phase_count
+            traci.trafficlight.setPhase(tls_id, phase)
 
-        for i, tls_id in enumerate(
-            traffic_lights
-        ):
-
-            phase_count = len(
-                traci.trafficlight
-                .getAllProgramLogics(
-                    tls_id
-                )[0]
-                .getPhases()
-            )
-
-            if phase_count > 0:
-
-                phase = (
-                    actions[i] %
-                    phase_count
-                )
-
-                traci.trafficlight.setPhase(
-                    tls_id,
-                    phase
-                )
-
-                print(
-                    tls_id,
-                    "→ Phase:",
-                    phase
-                )
+    if step % 10 == 0:
+        print("\nStep:", step)
+        for i, tls_id in enumerate(traffic_lights):
+            print(tls_id, "→ Phase:", actions[i])
 
 
 # --------------------------------------
