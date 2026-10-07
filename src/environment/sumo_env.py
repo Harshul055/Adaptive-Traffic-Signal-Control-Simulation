@@ -46,10 +46,10 @@ class SumoEnvironment:
         )
 
         # RESCO grid4x4
-        self.sumo_config = (
-            r"C:\Project\Adaptive-Traffic-Control"
-            r"\sumo-rl\sumo_rl\nets\RESCO\grid4x4"
-            r"\grid4x4.sumocfg"
+        self.sumo_config = os.path.join(
+            PROJECT_ROOT,
+            "sumo-rl", "sumo_rl", "nets", "RESCO",
+            "grid4x4", "grid4x4.sumocfg"
         )
 
         # Select SUMO or SUMO-GUI
