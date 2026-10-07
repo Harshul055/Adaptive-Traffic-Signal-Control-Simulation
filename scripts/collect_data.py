@@ -57,6 +57,8 @@ OUTPUT_FILE = os.path.join(
 # ==================================================
 
 MAX_STEPS = 1000
+SUMO_DELAY_MS = 0
+SUMO_SEED = 42
 
 
 # ==================================================
@@ -67,8 +69,9 @@ def start_sumo():
 
     sumo_command = [
         SUMO_BINARY,
-        "-c",
-        SUMO_CONFIG
+        "-c", SUMO_CONFIG,
+        "--delay", str(SUMO_DELAY_MS),
+        "--seed", str(SUMO_SEED),
     ]
 
     traci.start(
