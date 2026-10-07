@@ -65,6 +65,9 @@ class OnlineTrafficPredictor:
         self.feature_range[self.feature_range == 0] = 1.0
         self.model.eval()
 
+    def reset(self):
+        self.history.clear()
+
     @staticmethod
     def state_to_vector(state):
         return np.asarray(
