@@ -17,6 +17,7 @@ from src.graph.graph_builder import build_graph
 from src.graph.graph_builder import create_adjacency_matrix
 from src.graph.gnn import TrafficGNN
 from src.agents.mappo import MAPPO
+from src.environment.state import get_all_local_states
 
 
 SUMO_HOME = r"C:\Program Files (x86)\Eclipse\Sumo"
