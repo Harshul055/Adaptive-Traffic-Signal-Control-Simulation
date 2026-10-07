@@ -1389,3 +1389,79 @@ Final Results
 ```
 
 The project demonstrates how temporal prediction, spatial traffic relationships, and multi-agent reinforcement learning can be combined for adaptive traffic-signal control.
+
+
+---
+
+# 📋 Matched Research-Paper Evaluation
+
+For the final research-paper comparison, use:
+
+```powershell
+python scripts\run_paper_evaluation.py
+```
+
+This is different from the older MAPPO evaluation script. It performs two matched evaluations:
+
+1. **Fixed-Time**
+2. **GNN + MAPPO + Emergency/VIP Priority**
+
+Both runs use the same generated traffic scenario and the same evaluation horizon.
+
+The evaluator collects:
+
+| Metric | Direction |
+|---|---|
+| Delay / Waiting Time | ↓ lower is better |
+| Queue Length | ↓ lower is better |
+| Average Speed | ↑ higher is better |
+| Vehicle Count | ↓ lower in this experiment |
+| CO₂ | ↓ lower is better |
+| Throughput | ↑ higher is better |
+| Emergency/VIP Priority Response | ↑ higher is better |
+
+### CO₂
+
+CO₂ is measured directly through SUMO/TraCI rather than estimated from average speed:
+
+```text
+CO2(g) =
+Σ[CO2 emission rate (mg/s) × simulation step (s)] / 1000
+```
+
+### Throughput
+
+```text
+Throughput (veh/h) =
+completed vehicles / simulation duration (s) × 3600
+```
+
+Completed vehicles are counted using SUMO's arrived-vehicle list.
+
+### Emergency/VIP response
+
+The evaluator records when an Emergency/VIP vehicle is detected and when priority is granted.
+
+```text
+Priority Response Rate =
+priority grants / detected special vehicles × 100
+```
+
+It also reports average priority response time.
+
+### Output
+
+Raw matched evaluation data:
+
+```text
+evaluation/results/paper_fixed_time_metrics.csv
+evaluation/results/paper_gnn_mappo_emergency_vip_metrics.csv
+```
+
+Final paper table:
+
+```text
+evaluation/tables/paper_results.csv
+```
+
+**Important:** The numerical CO₂ and throughput values must be obtained by running the SUMO evaluation. They should not be manually estimated from waiting time, queue length, or average speed.
