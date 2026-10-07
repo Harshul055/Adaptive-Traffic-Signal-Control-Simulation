@@ -1,0 +1,26 @@
+name: Python checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Compile project Python files
+        run: python -m compileall -q app.py src scripts training
+
+      - name: Validate required package initializers
+        run: |
+          test -f src/__init__.py
+          test -f src/agents/__init__.py
+          test -f src/environment/__init__.py
