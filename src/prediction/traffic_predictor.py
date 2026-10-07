@@ -98,10 +98,37 @@ class OnlineTrafficPredictor:
         with torch.no_grad():
             prediction = self.model(tensor).cpu().numpy()[0]
 
+        normalized_prediction = prediction
         prediction = (
-            prediction * self.feature_range
+            normalized_prediction * self.feature_range
             + self.feature_min
         )
+
+        return torch.tensor(
+            prediction,
+            dtype=torch.float32
+        )
+
+    def predict_normalized(self, current_state):
+        vector = self.state_to_vector(current_state)
+
+        if not self.history:
+            for _ in range(self.sequence_length):
+                self.history.append(vector.copy())
+        else:
+            self.history.append(vector.copy())
+
+        history = np.asarray(self.history, dtype=np.float32)
+        normalized = (history - self.feature_min) / self.feature_range
+
+        tensor = torch.tensor(
+            normalized,
+            dtype=torch.float32,
+            device=self.device
+        ).unsqueeze(0)
+
+        with torch.no_grad():
+            prediction = self.model(tensor).cpu().numpy()[0]
 
         return torch.tensor(
             prediction,
